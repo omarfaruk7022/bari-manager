@@ -1,7 +1,5 @@
 import axios from "axios";
-// need dotenv
-import dotenv from "dotenv";
-dotenv.config();
+
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api",
