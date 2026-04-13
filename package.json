@@ -1,0 +1,29 @@
+{
+  "name": "bari-manager",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "packageManager": "npm@10.9.7",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "eslint": "^10.2.0",
+    "turbo": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "eslint-config-next": "^16.1.6",
+    "next": "^16.1.6",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "@bari/shared",
+  "version": "1.0.0",
+  "main": "./constants/index.js",
+  "exports": {
+    "./constants": "./constants/index.js"
+  }
+}

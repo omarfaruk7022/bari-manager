@@ -1,0 +1,61 @@
+{
+  "app": {
+    "name": "BariManager",
+    "tagline": "বাড়ি ভাড়া ব্যবস্থাপনা সিস্টেম"
+  },
+  "nav": {
+    "home": "হোম",
+    "tenants": "ভাড়াটে",
+    "bills": "বিল",
+    "expenses": "খরচ",
+    "reports": "রিপোর্ট",
+    "notices": "নোটিশ",
+    "payments": "পেমেন্ট",
+    "logout": "লগআউট"
+  },
+  "common": {
+    "save": "সংরক্ষণ করুন",
+    "cancel": "বাতিল",
+    "delete": "মুছুন",
+    "edit": "সম্পাদনা",
+    "add": "যুক্ত করুন",
+    "loading": "লোড হচ্ছে...",
+    "noData": "কোনো তথ্য নেই",
+    "confirm": "নিশ্চিত করুন",
+    "back": "ফিরে যান",
+    "search": "খুঁজুন"
+  },
+  "auth": {
+    "login": "লগইন",
+    "logout": "লগআউট",
+    "email": "ইমেইল",
+    "password": "পাসওয়ার্ড",
+    "loginBtn": "লগইন করুন",
+    "loggingIn": "লগইন হচ্ছে...",
+    "invalidCredentials": "ইমেইল বা পাসওয়ার্ড ভুল"
+  },
+  "bill": {
+    "title": "বিল",
+    "rent": "ভাড়া",
+    "electricity": "বিদ্যুৎ",
+    "gas": "গ্যাস",
+    "water": "পানি",
+    "garbage": "ময়লা",
+    "internet": "ইন্টারনেট",
+    "maintenance": "রক্ষণাবেক্ষণ",
+    "custom": "অন্যান্য",
+    "total": "মোট",
+    "paid": "পরিশোধিত",
+    "due": "বকেয়া",
+    "unpaid": "অপরিশোধিত",
+    "partial": "আংশিক"
+  },
+  "payment": {
+    "bkash": "bKash",
+    "cash": "নগদ",
+    "bank": "ব্যাংক",
+    "success": "সফল",
+    "failed": "ব্যর্থ",
+    "pending": "অপেক্ষমাণ"
+  }
+}
