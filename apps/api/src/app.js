@@ -14,8 +14,24 @@ const app = express();
 // ─── Security ───────────────────────────────────────
 app.use(helmet());
 // app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }))
-app.use(cors({ origin: "*", credentials: true }));
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://bari-manager.muhammadomarfaruk.com",
+  "http://192.168.1.72:3000",
+];
 
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS blocked"));
+      }
+    },
+    credentials: true,
+  }),
+);
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
