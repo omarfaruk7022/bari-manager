@@ -1,43 +1,44 @@
-'use client'
-import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
-import toast from 'react-hot-toast'
-import { Eye, EyeOff, LogIn } from 'lucide-react'
-import api from '@/lib/api'
-import { storeAuth } from '@/lib/auth'
+"use client";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+import { Eye, EyeOff, LogIn } from "lucide-react";
+import api from "@/lib/api";
+import { storeAuth } from "@/lib/auth";
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [form, setForm]       = useState({ email: '', password: '' })
-  const [showPass, setShow]   = useState(false)
+  const router = useRouter();
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [showPass, setShow] = useState(false);
   const loginMutation = useMutation({
     mutationFn: async (payload) => {
-      const res = await api.post('/auth/login', payload)
-      return res.data
+      const res = await api.post("/auth/login", payload);
+      return res.data;
     },
     onSuccess: (data) => {
-      storeAuth({ token: data.token, user: data.user })
-      toast.success('লগইন সফল!')
-      router.push(data.redirect)
+      storeAuth({ token: data.token, user: data.user });
+      toast.success("লগইন সফল!");
+      router.push(data.redirect);
     },
     onError: (err) => {
-      toast.error(err.response?.data?.message || err.message || 'লগইন ব্যর্থ হয়েছে')
+      toast.error(
+        err.response?.data?.message || err.message || "লগইন ব্যর্থ হয়েছে",
+      );
     },
-  })
+  });
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!form.email || !form.password)
-      return toast.error('ইমেইল ও পাসওয়ার্ড দিন')
+      return toast.error("ইমেইল ও পাসওয়ার্ড দিন");
 
-    loginMutation.mutate(form)
-  }
+    loginMutation.mutate(form);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -49,11 +50,15 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">লগইন করুন</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">
+            লগইন করুন
+          </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">ইমেইল</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                ইমেইল
+              </label>
               <input
                 type="email"
                 placeholder="আপনার ইমেইল লিখুন"
@@ -65,14 +70,18 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">পাসওয়ার্ড</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                পাসওয়ার্ড
+              </label>
               <div className="relative">
                 <input
-                  type={showPass ? 'text' : 'password'}
+                  type={showPass ? "text" : "password"}
                   placeholder="পাসওয়ার্ড লিখুন"
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-12 text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, password: e.target.value })
+                  }
                   autoComplete="current-password"
                 />
                 <button
@@ -95,19 +104,19 @@ export default function LoginPage() {
               ) : (
                 <LogIn size={20} />
               )}
-              {loginMutation.isPending ? 'অপেক্ষা করুন...' : 'লগইন'}
+              {loginMutation.isPending ? "অপেক্ষা করুন..." : "লগইন"}
             </button>
           </form>
         </div>
 
         {/* Subscribe link */}
         <p className="text-center text-sm text-gray-500 mt-6">
-          নতুন ল্যান্ডলর্ড?{' '}
+          নতুন বাড়ীওয়ালা?{" "}
           <a href="/subscribe" className="text-green-600 font-medium underline">
             সাবস্ক্রাইব করুন
           </a>
         </p>
       </div>
     </div>
-  )
+  );
 }

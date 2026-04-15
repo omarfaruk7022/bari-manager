@@ -54,7 +54,7 @@ export default function AdminLandlordsPage() {
 
   return (
     <div className="py-4 space-y-4">
-      <h1 className="text-xl font-bold text-gray-900">সকল ল্যান্ডলর্ড</h1>
+      <h1 className="text-xl font-bold text-gray-900">সকল বাড়ীওয়ালা</h1>
 
       {loading ? (
         <div className="space-y-3">
@@ -67,7 +67,7 @@ export default function AdminLandlordsPage() {
         </div>
       ) : landlords.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
-          <p>কোনো ল্যান্ডলর্ড নেই</p>
+          <p>কোনো বাড়ীওয়ালা নেই</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -191,7 +191,7 @@ export default function AdminLandlordsPage() {
                   </button>
                   <button
                     onClick={() => {
-                      if (!confirm("এই ল্যান্ডলর্ড ও সম্পর্কিত তথ্য মুছবেন?"))
+                      if (!confirm("এই বাড়ীওয়ালা ও সম্পর্কিত তথ্য মুছবেন?"))
                         return;
                       deleteMutation.mutate(l._id);
                     }}

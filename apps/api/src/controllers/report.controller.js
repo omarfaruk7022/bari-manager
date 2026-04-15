@@ -16,7 +16,7 @@ export const monthly = async (req, res, next) => {
     if (!landlordId)
       return res
         .status(400)
-        .json({ success: false, message: "ল্যান্ডলর্ড নির্বাচন করুন" });
+        .json({ success: false, message: "বাড়ীওয়ালা নির্বাচন করুন" });
 
     const start = new Date(`${month}-01`);
     const end = new Date(start);
@@ -74,7 +74,7 @@ export const yearly = async (req, res, next) => {
     if (!landlordId)
       return res
         .status(400)
-        .json({ success: false, message: "ল্যান্ডলর্ড নির্বাচন করুন" });
+        .json({ success: false, message: "বাড়ীওয়ালা নির্বাচন করুন" });
 
     const months = Array.from({ length: 12 }, (_, i) => {
       const m = String(i + 1).padStart(2, "0");
