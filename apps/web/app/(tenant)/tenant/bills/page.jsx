@@ -1,23 +1,16 @@
 'use client'
-import { useEffect, useState } from 'react'
-import api from '@/lib/api'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { BillCard } from '@/components/landlord/BillCard'
+import { request } from '@/lib/query'
 
 export default function TenantBillsPage() {
   const now = new Date()
   const [month, setMonth]   = useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`)
-  const [bills, setBills]   = useState([])
-  const [loading, setLoading] = useState(true)
-
-  const load = async (m) => {
-    setLoading(true)
-    try {
-      const res = await api.get(`/tenant/bills${m ? `?month=${m}` : ''}`)
-      setBills(res.data.data)
-    } finally { setLoading(false) }
-  }
-
-  useEffect(() => { load(month) }, [month])
+  const { data: bills = [], isLoading: loading } = useQuery({
+    queryKey: ['tenant', 'bills', month],
+    queryFn: () => request({ url: `/tenant/bills${month ? `?month=${month}` : ''}` }),
+  })
 
   return (
     <div className="py-4 space-y-4">
@@ -40,7 +33,7 @@ export default function TenantBillsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {bills.map(b => <BillCard key={b._id} bill={b} role="tenant" onRefresh={() => load(month)} />)}
+          {bills.map(b => <BillCard key={b._id} bill={b} role="tenant" queryKey={['tenant', 'bills', month]} />)}
         </div>
       )}
     </div>

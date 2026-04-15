@@ -2,13 +2,15 @@ import Bill from '../models/Bill.model.js'
 import Payment from '../models/Payment.model.js'
 import Expense from '../models/Expense.model.js'
 import Tenant from '../models/Tenant.model.js'
+import { getScopedLandlordId } from '../utils/access.js'
 
 export const monthly = async (req, res, next) => {
   try {
     const { month } = req.query
     if (!month) return res.status(400).json({ success: false, message: 'মাস দিন (যেমন: 2025-01)' })
 
-    const landlordId = req.user._id
+    const landlordId = getScopedLandlordId(req)
+    if (!landlordId) return res.status(400).json({ success: false, message: 'ল্যান্ডলর্ড নির্বাচন করুন' })
 
     const [bills, payments, expenses, activeTenants] = await Promise.all([
       Bill.find({ landlordId, month }),
@@ -49,7 +51,8 @@ export const monthly = async (req, res, next) => {
 export const yearly = async (req, res, next) => {
   try {
     const year = req.query.year || new Date().getFullYear()
-    const landlordId = req.user._id
+    const landlordId = getScopedLandlordId(req)
+    if (!landlordId) return res.status(400).json({ success: false, message: 'ল্যান্ডলর্ড নির্বাচন করুন' })
 
     const months = Array.from({ length: 12 }, (_, i) => {
       const m = String(i + 1).padStart(2, '0')

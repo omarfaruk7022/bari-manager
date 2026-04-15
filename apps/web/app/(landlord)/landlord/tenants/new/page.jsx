@@ -1,14 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { ArrowLeft } from "lucide-react";
 import api from "@/lib/api";
+import { request } from "@/lib/query";
 
 export default function NewTenantPage() {
   const router = useRouter();
-  const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -22,12 +22,20 @@ export default function NewTenantPage() {
     emergencyContact: { name: "", phone: "" },
   });
 
-  useEffect(() => {
-    api
-      .get("/landlord/properties?occupied=false")
-      .then((r) => setProperties(r.data.data))
-      .catch(() => {});
-  }, []);
+  const { data: properties = [] } = useQuery({
+    queryKey: ["landlord", "properties", "available"],
+    queryFn: () => request({ url: "/landlord/properties?occupied=false" }),
+  });
+  const createTenantMutation = useMutation({
+    mutationFn: async (payload) => api.post("/landlord/tenants", payload),
+    onSuccess: () => {
+      toast.success("ভাড়াটে যুক্ত হয়েছে!");
+      router.push("/landlord/tenants");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "সমস্যা হয়েছে");
+    },
+  });
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -41,16 +49,7 @@ export default function NewTenantPage() {
       !form.monthlyRent
     )
       return toast.error("তারকা চিহ্নিত ঘরগুলো পূরণ করুন");
-    setLoading(true);
-    try {
-      await api.post("/landlord/tenants", form);
-      toast.success("ভাড়াটে যুক্ত হয়েছে!");
-      router.push("/landlord/tenants");
-    } catch (err) {
-      toast.error(err.response?.data?.message || "সমস্যা হয়েছে");
-    } finally {
-      setLoading(false);
-    }
+    createTenantMutation.mutate(form);
   };
 
   const field = (label, key, type = "text", ph = "", required = false) => (
@@ -188,10 +187,10 @@ export default function NewTenantPage() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={createTenantMutation.isPending}
           className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-semibold py-4 rounded-xl text-base transition-colors"
         >
-          {loading ? "সংরক্ষণ হচ্ছে..." : "ভাড়াটে যুক্ত করুন"}
+          {createTenantMutation.isPending ? "সংরক্ষণ হচ্ছে..." : "ভাড়াটে যুক্ত করুন"}
         </button>
       </form>
     </div>

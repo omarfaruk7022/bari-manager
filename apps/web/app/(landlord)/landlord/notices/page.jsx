@@ -1,30 +1,35 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Bell, Send } from 'lucide-react'
 import api from '@/lib/api'
+import { request } from '@/lib/query'
 
 export default function NoticesPage() {
-  const [tenants, setTenants] = useState([])
   const [form, setForm]       = useState({ title: '', body: '', tenantId: '', channel: 'in_app' })
-  const [loading, setLoading] = useState(false)
+  const { data: tenants = [] } = useQuery({
+    queryKey: ['landlord', 'tenants', 'notice-form'],
+    queryFn: () => request({ url: '/landlord/tenants?active=true&limit=100' }),
+  })
+  const sendNoticeMutation = useMutation({
+    mutationFn: async (payload) => {
+      const res = await api.post('/landlord/notices', payload)
+      return res.data
+    },
+    onSuccess: (data) => {
+      toast.success(data.message)
+      setForm({ title: '', body: '', tenantId: '', channel: 'in_app' })
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || 'পাঠানো যায়নি')
+    },
+  })
 
-  useEffect(() => {
-    api.get('/landlord/tenants?active=true&limit=100')
-      .then(r => setTenants(r.data.data))
-  }, [])
-
-  const handleSend = async (e) => {
+  const handleSend = (e) => {
     e.preventDefault()
     if (!form.title || !form.body) return toast.error('শিরোনাম ও বার্তা দিন')
-    setLoading(true)
-    try {
-      const res = await api.post('/landlord/notices', form)
-      toast.success(res.data.message)
-      setForm({ title: '', body: '', tenantId: '', channel: 'in_app' })
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'পাঠানো যায়নি')
-    } finally { setLoading(false) }
+    sendNoticeMutation.mutate(form)
   }
 
   return (
@@ -96,11 +101,11 @@ export default function NoticesPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={sendNoticeMutation.isPending}
             className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-semibold py-4 rounded-xl flex items-center justify-center gap-2 text-base"
           >
             <Send size={18} />
-            {loading ? 'পাঠানো হচ্ছে...' : 'নোটিশ পাঠান'}
+            {sendNoticeMutation.isPending ? 'পাঠানো হচ্ছে...' : 'নোটিশ পাঠান'}
           </button>
         </form>
       </div>

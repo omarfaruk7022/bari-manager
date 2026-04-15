@@ -1,8 +1,9 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, CheckCheck } from 'lucide-react'
 import api from '@/lib/api'
 import toast from 'react-hot-toast'
+import { request } from '@/lib/query'
 
 const TYPE_COLOR = {
   bill_ready:        'bg-blue-50 text-blue-700',
@@ -13,23 +14,21 @@ const TYPE_COLOR = {
 }
 
 export default function TenantNoticesPage() {
-  const [notifs, setNotifs]   = useState([])
-  const [loading, setLoading] = useState(true)
-
-  const load = async () => {
-    try {
-      const res = await api.get('/notifications')
-      setNotifs(res.data.data)
-    } finally { setLoading(false) }
-  }
-
-  useEffect(() => { load() }, [])
-
-  const markAllRead = async () => {
-    await api.put('/notifications/mark-read')
-    toast.success('সব পড়া হয়েছে')
-    load()
-  }
+  const queryClient = useQueryClient()
+  const { data: notifs = [], isLoading: loading } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => request({ url: '/notifications' }),
+  })
+  const markReadMutation = useMutation({
+    mutationFn: () => api.put('/notifications/mark-read'),
+    onSuccess: async () => {
+      toast.success('সব পড়া হয়েছে')
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+        queryClient.invalidateQueries({ queryKey: ['auth', 'me'] }),
+      ])
+    },
+  })
 
   const unread = notifs.filter(n => !n.isRead).length
 
@@ -43,7 +42,10 @@ export default function TenantNoticesPage() {
           )}
         </div>
         {unread > 0 && (
-          <button onClick={markAllRead} className="flex items-center gap-1 text-sm text-green-600 font-medium">
+          <button
+            onClick={() => markReadMutation.mutate()}
+            className="flex items-center gap-1 text-sm text-green-600 font-medium"
+          >
             <CheckCheck size={16} /> সব পড়া হয়েছে
           </button>
         )}

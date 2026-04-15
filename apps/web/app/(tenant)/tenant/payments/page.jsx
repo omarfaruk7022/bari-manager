@@ -1,10 +1,9 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
-import { useEffect as useEffect2 } from 'react'
 import toast from 'react-hot-toast'
-import { CheckCircle, XCircle } from 'lucide-react'
-import api from '@/lib/api'
+import { request } from '@/lib/query'
 
 const METHOD_LABEL = { bkash: 'bKash', cash: 'নগদ', bank_transfer: 'ব্যাংক' }
 const STATUS_COLOR = { success: 'text-green-600 bg-green-50', pending: 'text-yellow-600 bg-yellow-50', failed: 'text-red-600 bg-red-50' }
@@ -12,21 +11,16 @@ const STATUS_LABEL = { success: 'সফল', pending: 'অপেক্ষমা�
 
 export default function TenantPaymentsPage() {
   const searchParams = useSearchParams()
-  const [payments, setPayments] = useState([])
-  const [loading, setLoading]   = useState(true)
+  const { data: payments = [], isLoading: loading } = useQuery({
+    queryKey: ['tenant', 'payments'],
+    queryFn: () => request({ url: '/tenant/payments' }),
+  })
 
   useEffect(() => {
     const status = searchParams.get('status')
     if (status === 'success') toast.success('পেমেন্ট সফল হয়েছে!')
     if (status === 'failed')  toast.error('পেমেন্ট ব্যর্থ হয়েছে। আবার চেষ্টা করুন।')
   }, [searchParams])
-
-  useEffect(() => {
-    api.get('/tenant/payments')
-      .then(r => setPayments(r.data.data))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
 
   return (
     <div className="py-4 space-y-4">

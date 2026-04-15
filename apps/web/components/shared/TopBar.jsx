@@ -1,21 +1,19 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { Bell, LogOut } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import api from '@/lib/api'
+import { request } from '@/lib/query'
 
 export function TopBar() {
   const router = useRouter()
   const { user, logout } = useAuth()
-  const [unread, setUnread] = useState(0)
-
-  useEffect(() => {
-    if (!user) return
-    api.get('/auth/me')
-      .then(r => setUnread(r.data.unreadNotifications || 0))
-      .catch(() => {})
-  }, [user])
+  const { data: me } = useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: () => request({ url: '/auth/me' }),
+    enabled: !!user,
+  })
+  const unread = me?.unreadNotifications || 0
 
   const notifPath = user?.role === 'tenant' ? '/tenant/notices'
     : user?.role === 'landlord' ? '/landlord/notices'
@@ -23,13 +21,16 @@ export function TopBar() {
 
   return (
     <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
-      <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 lg:px-6">
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-600">
             <span className="text-white text-sm font-bold">বা</span>
           </div>
-          <span className="font-bold text-gray-900 text-lg">BariManager</span>
+          <div>
+            <span className="block text-lg font-bold text-gray-900">BariManager</span>
+            <span className="hidden text-xs text-gray-500 lg:block">ভাড়া ব্যবস্থাপনা</span>
+          </div>
         </div>
 
         {/* Right actions */}

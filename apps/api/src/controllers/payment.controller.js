@@ -3,6 +3,7 @@ import Bill from '../models/Bill.model.js'
 import Tenant from '../models/Tenant.model.js'
 import { getBkashToken, createBkashPayment, executeBkashPayment } from '../services/bkash.service.js'
 import { sendPaymentReceivedNotification } from '../services/notification.service.js'
+import { isAdmin, withScopedFilter } from '../utils/access.js'
 
 // Helper — update bill after payment
 const updateBillAfterPayment = async (billId, paidNow) => {
@@ -21,8 +22,7 @@ const updateBillAfterPayment = async (billId, paidNow) => {
 
 export const list = async (req, res, next) => {
   try {
-    const filter = {}
-    if (req.user.role === 'landlord') filter.landlordId = req.user._id
+    const filter = withScopedFilter(req, {}, { allowAllForAdmin: true })
     if (req.user.role === 'tenant') {
       const tenant = await Tenant.findOne({ userId: req.user._id })
       if (tenant) filter.tenantId = tenant._id
@@ -45,13 +45,16 @@ export const cashPayment = async (req, res, next) => {
   try {
     const { billId, amount, receiptNote } = req.body
 
-    const bill = await Bill.findOne({ _id: billId, landlordId: req.user._id })
+    const billFilter = isAdmin(req)
+      ? { _id: billId }
+      : { _id: billId, landlordId: req.user._id }
+    const bill = await Bill.findOne(billFilter)
     if (!bill) return res.status(404).json({ success: false, message: 'বিল পাওয়া যায়নি' })
     if (bill.status === 'paid') return res.status(400).json({ success: false, message: 'বিল ইতোমধ্যে পরিশোধিত' })
     if (amount > bill.dueAmount) return res.status(400).json({ success: false, message: `বকেয়ার চেয়ে বেশি দেওয়া যাবে না। বকেয়া: ৳${bill.dueAmount}` })
 
     const payment = await Payment.create({
-      landlordId: req.user._id,
+      landlordId: bill.landlordId,
       tenantId: bill.tenantId,
       billId,
       amount,

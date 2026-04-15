@@ -1,31 +1,18 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { Plus, Search } from 'lucide-react'
-import api from '@/lib/api'
 import { TenantCard } from '@/components/landlord/TenantCard'
+import { request } from '@/lib/query'
 
 export default function TenantsPage() {
   const router = useRouter()
-  const [tenants, setTenants]   = useState([])
   const [search, setSearch]     = useState('')
-  const [loading, setLoading]   = useState(true)
-
-  const load = async (q = '') => {
-    setLoading(true)
-    try {
-      const res = await api.get(`/landlord/tenants?active=true${q ? `&search=${q}` : ''}`)
-      setTenants(res.data.data)
-    } finally { setLoading(false) }
-  }
-
-  useEffect(() => { load() }, [])
-
-  const handleSearch = (e) => {
-    setSearch(e.target.value)
-    const t = setTimeout(() => load(e.target.value), 400)
-    return () => clearTimeout(t)
-  }
+  const { data: tenants = [], isLoading: loading } = useQuery({
+    queryKey: ['landlord', 'tenants', search],
+    queryFn: () => request({ url: `/landlord/tenants?active=true${search ? `&search=${search}` : ''}` }),
+  })
 
   return (
     <div className="py-4 space-y-4">
@@ -47,7 +34,7 @@ export default function TenantsPage() {
           placeholder="নাম দিয়ে খুঁজুন..."
           className="w-full border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
           value={search}
-          onChange={handleSearch}
+          onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 

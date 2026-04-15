@@ -1,31 +1,37 @@
 'use client'
 import { useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Eye, EyeOff, LogIn } from 'lucide-react'
-import { login } from '@/lib/auth'
+import api from '@/lib/api'
+import { storeAuth } from '@/lib/auth'
 
 export default function LoginPage() {
   const router = useRouter()
   const [form, setForm]       = useState({ email: '', password: '' })
   const [showPass, setShow]   = useState(false)
-  const [loading, setLoading] = useState(false)
+  const loginMutation = useMutation({
+    mutationFn: async (payload) => {
+      const res = await api.post('/auth/login', payload)
+      return res.data
+    },
+    onSuccess: (data) => {
+      storeAuth({ token: data.token, user: data.user })
+      toast.success('লগইন সফল!')
+      router.push(data.redirect)
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || err.message || 'লগইন ব্যর্থ হয়েছে')
+    },
+  })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.email || !form.password)
       return toast.error('ইমেইল ও পাসওয়ার্ড দিন')
 
-    setLoading(true)
-    try {
-      const data = await login(form.email, form.password)
-      toast.success('লগইন সফল!')
-      router.push(data.redirect)
-    } catch (err) {
-      toast.error(err.message || 'লগইন ব্যর্থ হয়েছে')
-    } finally {
-      setLoading(false)
-    }
+    loginMutation.mutate(form)
   }
 
   return (
@@ -81,15 +87,15 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loginMutation.isPending}
               className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-semibold py-3 rounded-xl text-base transition-colors flex items-center justify-center gap-2"
             >
-              {loading ? (
+              {loginMutation.isPending ? (
                 <span className="inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 <LogIn size={20} />
               )}
-              {loading ? 'অপেক্ষা করুন...' : 'লগইন'}
+              {loginMutation.isPending ? 'অপেক্ষা করুন...' : 'লগইন'}
             </button>
           </form>
         </div>

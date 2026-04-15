@@ -1,8 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { CheckCircle, XCircle, Clock } from 'lucide-react'
 import api from '@/lib/api'
+import { request } from '@/lib/query'
 
 const STATUS_CONFIG = {
   pending:  { label: 'অপেক্ষমাণ', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
@@ -11,43 +13,45 @@ const STATUS_CONFIG = {
 }
 
 export default function AdminSubscriptionsPage() {
-  const [subs, setSubs]       = useState([])
   const [filter, setFilter]   = useState('pending')
-  const [loading, setLoading] = useState(true)
   const [acting, setActing]   = useState(null)
-
-  const load = async (status) => {
-    setLoading(true)
-    try {
-      const res = await api.get(`/admin/subscriptions?status=${status}`)
-      setSubs(res.data.data)
-    } finally { setLoading(false) }
-  }
-
-  useEffect(() => { load(filter) }, [filter])
+  const queryClient = useQueryClient()
+  const { data: subs = [], isLoading: loading } = useQuery({
+    queryKey: ['admin', 'subscriptions', filter],
+    queryFn: () => request({ url: `/admin/subscriptions?status=${filter}` }),
+  })
+  const refresh = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['admin', 'subscriptions', filter] }),
+    queryClient.invalidateQueries({ queryKey: ['admin', 'subscriptions', 'pending'] }),
+    queryClient.invalidateQueries({ queryKey: ['admin', 'stats'] }),
+  ])
+  const approveMutation = useMutation({
+    mutationFn: (id) => api.put(`/admin/subscriptions/${id}/approve`),
+    onSuccess: async (res) => {
+      toast.success(res.data.message)
+      await refresh()
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'সমস্যা হয়েছে'),
+  })
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, reason }) => api.put(`/admin/subscriptions/${id}/reject`, { reason }),
+    onSuccess: async () => {
+      toast.success('প্রত্যাখ্যান করা হয়েছে')
+      await refresh()
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'সমস্যা হয়েছে'),
+  })
 
   const approve = async (id) => {
     setActing(id + '-approve')
-    try {
-      const res = await api.put(`/admin/subscriptions/${id}/approve`)
-      toast.success(res.data.message)
-      load(filter)
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'সমস্যা হয়েছে')
-    } finally { setActing(null) }
+    approveMutation.mutate(id, { onSettled: () => setActing(null) })
   }
 
   const reject = async (id) => {
     const reason = prompt('প্রত্যাখ্যানের কারণ লিখুন:')
     if (reason === null) return
     setActing(id + '-reject')
-    try {
-      await api.put(`/admin/subscriptions/${id}/reject`, { reason: reason || 'কারণ উল্লেখ নেই' })
-      toast.success('প্রত্যাখ্যান করা হয়েছে')
-      load(filter)
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'সমস্যা হয়েছে')
-    } finally { setActing(null) }
+    rejectMutation.mutate({ id, reason: reason || 'কারণ উল্লেখ নেই' }, { onSettled: () => setActing(null) })
   }
 
   return (

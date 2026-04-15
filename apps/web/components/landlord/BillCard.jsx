@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { CreditCard, Banknote, ChevronDown, ChevronUp } from 'lucide-react'
 import api from '@/lib/api'
@@ -16,41 +17,55 @@ const ITEM_LABELS = {
   maintenance: 'রক্ষণাবেক্ষণ', custom: '',
 }
 
-export function BillCard({ bill, role, onRefresh }) {
+export function BillCard({ bill, role, queryKey }) {
   const [expanded, setExpanded]   = useState(false)
-  const [paying, setPaying]       = useState(false)
   const [cashAmount, setCashAmt]  = useState('')
   const [showCash, setShowCash]   = useState(false)
+  const queryClient = useQueryClient()
   const cfg = STATUS_CONFIG[bill.status] || STATUS_CONFIG.unpaid
   const canPay = role === 'tenant' && bill.status !== 'paid'
   const canMarkCash = role === 'landlord' && bill.status !== 'paid'
-
-  const handleBkash = async () => {
-    const amount = bill.dueAmount
-    setPaying(true)
-    try {
-      const res = await api.post('/tenant/payments/bkash/init', { billId: bill._id, amount })
-      window.location.href = res.data.bkashURL
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'bKash পেমেন্ট শুরু করা যায়নি')
-      setPaying(false)
-    }
+  const refreshQueries = async () => {
+    if (queryKey) await queryClient.invalidateQueries({ queryKey })
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['tenant', 'payments'] }),
+      queryClient.invalidateQueries({ queryKey: ['landlord', 'bills'] }),
+      queryClient.invalidateQueries({ queryKey: ['landlord', 'recent-bills'] }),
+      queryClient.invalidateQueries({ queryKey: ['landlord', 'dashboard'] }),
+    ])
   }
+
+  const bkashMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post('/tenant/payments/bkash/init', { billId: bill._id, amount: bill.dueAmount })
+      return res.data
+    },
+    onSuccess: (data) => {
+      window.location.href = data.bkashURL
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || 'bKash পেমেন্ট শুরু করা যায়নি')
+    },
+  })
+
+  const cashMutation = useMutation({
+    mutationFn: async (amount) => api.post('/landlord/payments/cash', { billId: bill._id, amount }),
+    onSuccess: async () => {
+      toast.success('নগদ পেমেন্ট রেকর্ড হয়েছে')
+      setShowCash(false)
+      setCashAmt('')
+      await refreshQueries()
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || 'সমস্যা হয়েছে')
+    },
+  })
 
   const handleCash = async () => {
     const amt = Number(cashAmount)
     if (!amt || amt <= 0) return toast.error('পরিমাণ দিন')
     if (amt > bill.dueAmount) return toast.error(`বকেয়ার চেয়ে বেশি দেওয়া যাবে না (৳${bill.dueAmount})`)
-    setPaying(true)
-    try {
-      await api.post('/landlord/payments/cash', { billId: bill._id, amount: amt })
-      toast.success('নগদ পেমেন্ট রেকর্ড হয়েছে')
-      setShowCash(false)
-      setCashAmt('')
-      onRefresh?.()
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'সমস্যা হয়েছে')
-    } finally { setPaying(false) }
+    cashMutation.mutate(amt)
   }
 
   return (
@@ -130,11 +145,11 @@ export function BillCard({ bill, role, onRefresh }) {
         <div className="px-4 pb-4 pt-2 flex gap-2 border-t border-gray-50">
           <button
             onClick={handleBkash}
-            disabled={paying}
+            disabled={bkashMutation.isPending}
             className="flex-1 bg-pink-600 hover:bg-pink-700 disabled:bg-pink-300 text-white py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
           >
             <CreditCard size={16} />
-            {paying ? 'অপেক্ষা...' : 'bKash দিয়ে পে করুন'}
+            {bkashMutation.isPending ? 'অপেক্ষা...' : 'bKash দিয়ে পে করুন'}
           </button>
         </div>
       )}
@@ -168,9 +183,9 @@ export function BillCard({ bill, role, onRefresh }) {
               className="flex-1 border border-gray-200 py-3 rounded-xl text-sm font-medium text-gray-600">
               বাতিল
             </button>
-            <button onClick={handleCash} disabled={paying}
+            <button onClick={handleCash} disabled={cashMutation.isPending}
               className="flex-1 bg-green-600 text-white py-3 rounded-xl text-sm font-semibold disabled:bg-green-300">
-              {paying ? 'সংরক্ষণ...' : 'নিশ্চিত করুন'}
+              {cashMutation.isPending ? 'সংরক্ষণ...' : 'নিশ্চিত করুন'}
             </button>
           </div>
         </div>

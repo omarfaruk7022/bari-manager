@@ -1,20 +1,29 @@
 "use client";
 
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import api from "@/lib/api";
 
 export default function NewPropertyPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-
   const [form, setForm] = useState({
     unitNumber: "",
     floor: "",
     type: "flat",
     monthlyRent: "",
     description: "",
+  });
+  const createPropertyMutation = useMutation({
+    mutationFn: async (payload) => api.post("/landlord/properties", payload),
+    onSuccess: () => {
+      toast.success("Property created!");
+      router.push("/landlord/tenants/new");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Error");
+    },
   });
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -26,17 +35,7 @@ export default function NewPropertyPage() {
       return toast.error("Required fields missing");
     }
 
-    setLoading(true);
-    try {
-      await api.post("/landlord/properties", form);
-
-      toast.success("Property created!");
-      router.push("/landlord/tenants/new");
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Error");
-    } finally {
-      setLoading(false);
-    }
+    createPropertyMutation.mutate(form);
   };
 
   return (
@@ -85,10 +84,10 @@ export default function NewPropertyPage() {
         />
 
         <button
-          disabled={loading}
+          disabled={createPropertyMutation.isPending}
           className="w-full bg-green-600 text-white py-3 rounded-xl"
         >
-          {loading ? "Saving..." : "Create Property"}
+          {createPropertyMutation.isPending ? "Saving..." : "Create Property"}
         </button>
       </form>
     </div>

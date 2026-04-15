@@ -1,29 +1,27 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { FileText, CheckCircle, Clock, Bell } from 'lucide-react'
-import api from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { StatCard } from '@/components/shared/StatCard'
 import { BillCard } from '@/components/landlord/BillCard'
+import { request } from '@/lib/query'
 
 export default function TenantDashboard() {
   const { user } = useAuth()
-  const [bills, setBills]   = useState([])
-  const [loading, setLoading] = useState(true)
 
   const now   = new Date()
   const month = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`
-
-  useEffect(() => {
-    api.get(`/tenant/bills?month=${month}`)
-      .then(r => setBills(r.data.data))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: bills = [], isLoading: loading } = useQuery({
+    queryKey: ['tenant', 'bills', month],
+    queryFn: () => request({ url: `/tenant/bills?month=${month}` }),
+  })
 
   const currentBill = bills[0]
-  const totalDue    = bills.reduce((s, b) => s + b.dueAmount, 0)
-  const paidCount   = bills.filter(b => b.status === 'paid').length
+  const { totalDue, paidCount } = useMemo(() => ({
+    totalDue: bills.reduce((s, b) => s + b.dueAmount, 0),
+    paidCount: bills.filter((b) => b.status === 'paid').length,
+  }), [bills])
 
   return (
     <div className="py-4 space-y-5">
@@ -45,7 +43,7 @@ export default function TenantDashboard() {
       {!loading && currentBill && (
         <div>
           <h2 className="font-semibold text-gray-700 mb-3">এই মাসের বিল</h2>
-          <BillCard bill={currentBill} role="tenant" onRefresh={() => {}} />
+          <BillCard bill={currentBill} role="tenant" queryKey={['tenant', 'bills', month]} />
         </div>
       )}
 

@@ -1,7 +1,8 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useQueries } from '@tanstack/react-query'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import api from '@/lib/api'
+import { request } from '@/lib/query'
 
 const MONTH_LABELS = ['জানু','ফেব্রু','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টে','অক্টো','নভে','ডিসে']
 
@@ -9,31 +10,28 @@ export default function ReportsPage() {
   const now  = new Date()
   const [year, setYear]       = useState(now.getFullYear())
   const [month, setMonth]     = useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`)
-  const [yearly, setYearly]   = useState(null)
-  const [monthly, setMonthly] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [yearlyQuery, monthlyQuery] = useQueries({
+    queries: [
+      {
+        queryKey: ['landlord', 'reports', 'yearly', year],
+        queryFn: () => request({ url: `/landlord/reports/yearly?year=${year}` }),
+      },
+      {
+        queryKey: ['landlord', 'reports', 'monthly', month],
+        queryFn: () => request({ url: `/landlord/reports/monthly?month=${month}` }),
+      },
+    ],
+  })
+  const yearly = yearlyQuery.data
+  const monthly = monthlyQuery.data
+  const loading = yearlyQuery.isLoading || monthlyQuery.isLoading
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true)
-      try {
-        const [yr, mr] = await Promise.all([
-          api.get(`/landlord/reports/yearly?year=${year}`),
-          api.get(`/landlord/reports/monthly?month=${month}`),
-        ])
-        setYearly(yr.data.data)
-        setMonthly(mr.data.data)
-      } finally { setLoading(false) }
-    }
-    load()
-  }, [year, month])
-
-  const chartData = yearly?.monthlyBreakdown?.map((m, i) => ({
+  const chartData = useMemo(() => yearly?.monthlyBreakdown?.map((m, i) => ({
     name: MONTH_LABELS[i],
     আদায়: m.collected,
     খরচ:  m.expenses,
     লাভ:  m.profit,
-  })) || []
+  })) || [], [yearly])
 
   return (
     <div className="py-4 space-y-5">

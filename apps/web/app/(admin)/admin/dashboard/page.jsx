@@ -1,26 +1,21 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useQueries } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { Users, Building2, Clock, CheckCircle } from 'lucide-react'
-import api from '@/lib/api'
 import { StatCard } from '@/components/shared/StatCard'
+import { request } from '@/lib/query'
 
 export default function AdminDashboard() {
   const router = useRouter()
-  const [stats, setStats]   = useState(null)
-  const [pending, setPending] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    Promise.all([
-      api.get('/admin/stats'),
-      api.get('/admin/subscriptions?status=pending&limit=5'),
-    ]).then(([s, p]) => {
-      setStats(s.data.data)
-      setPending(p.data.data)
-    }).catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  const [statsQuery, pendingQuery] = useQueries({
+    queries: [
+      { queryKey: ['admin', 'stats'], queryFn: () => request({ url: '/admin/stats' }) },
+      { queryKey: ['admin', 'subscriptions', 'pending'], queryFn: () => request({ url: '/admin/subscriptions?status=pending&limit=5' }) },
+    ],
+  })
+  const stats = statsQuery.data
+  const pending = pendingQuery.data || []
+  const loading = statsQuery.isLoading || pendingQuery.isLoading
 
   return (
     <div className="py-4 space-y-5">

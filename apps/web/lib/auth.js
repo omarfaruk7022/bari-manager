@@ -1,13 +1,8 @@
-import api from './api'
-
-export const login = async (email, password) => {
-  const res = await api.post('/auth/login', { email, password })
-  const { token, user, redirect } = res.data
+export const storeAuth = ({ token, user }) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('bm_token', token)
     localStorage.setItem('bm_user', JSON.stringify(user))
   }
-  return { token, user, redirect }
 }
 
 export const logout = () => {

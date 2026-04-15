@@ -1,9 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Plus, Trash2, ArrowLeft } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { Plus, Trash2 } from 'lucide-react'
 import api from '@/lib/api'
+import { request } from '@/lib/query'
 
 const CATEGORIES = [
   { value: 'utilities',    label: 'ইউটিলিটি' },
@@ -16,51 +17,49 @@ const CATEGORIES = [
 ]
 
 export default function ExpensesPage() {
-  const router = useRouter()
+  const queryClient = useQueryClient()
   const now    = new Date()
   const curMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-  const [expenses, setExpenses] = useState([])
   const [month, setMonth]       = useState(curMonth)
-  const [loading, setLoading]   = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [saving, setSaving]     = useState(false)
   const [form, setForm] = useState({ title: '', amount: '', category: 'other', month: curMonth, date: '' })
-
-  const load = async (m) => {
-    setLoading(true)
-    try {
-      const res = await api.get(`/landlord/expenses?month=${m}`)
-      setExpenses(res.data.data)
-    } finally { setLoading(false) }
-  }
-
-  useEffect(() => { load(month) }, [month])
+  const { data: expenses = [], isLoading: loading } = useQuery({
+    queryKey: ['landlord', 'expenses', month],
+    queryFn: () => request({ url: `/landlord/expenses?month=${month}` }),
+  })
+  const addExpenseMutation = useMutation({
+    mutationFn: async (payload) => api.post('/landlord/expenses', payload),
+    onSuccess: async () => {
+      toast.success('খরচ যুক্ত হয়েছে')
+      setShowForm(false)
+      setForm({ title: '', amount: '', category: 'other', month: curMonth, date: '' })
+      await queryClient.invalidateQueries({ queryKey: ['landlord', 'expenses', month] })
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || 'সমস্যা হয়েছে')
+    },
+  })
+  const deleteExpenseMutation = useMutation({
+    mutationFn: async (id) => api.delete(`/landlord/expenses/${id}`),
+    onSuccess: async () => {
+      toast.success('মুছে গেছে')
+      await queryClient.invalidateQueries({ queryKey: ['landlord', 'expenses', month] })
+    },
+    onError: () => {
+      toast.error('মুছতে পারেনি')
+    },
+  })
 
   const handleAdd = async (e) => {
     e.preventDefault()
     if (!form.title || !form.amount) return toast.error('শিরোনাম ও পরিমাণ দিন')
-    setSaving(true)
-    try {
-      await api.post('/landlord/expenses', { ...form, amount: Number(form.amount), month })
-      toast.success('খরচ যুক্ত হয়েছে')
-      setShowForm(false)
-      setForm({ title: '', amount: '', category: 'other', month: curMonth, date: '' })
-      load(month)
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'সমস্যা হয়েছে')
-    } finally { setSaving(false) }
+    addExpenseMutation.mutate({ ...form, amount: Number(form.amount), month })
   }
 
-  const handleDelete = async (id) => {
+    const handleDelete = async (id) => {
     if (!confirm('এই খরচ মুছবেন?')) return
-    try {
-      await api.delete(`/landlord/expenses/${id}`)
-      toast.success('মুছে গেছে')
-      load(month)
-    } catch {
-      toast.error('মুছতে পারেনি')
-    }
+    deleteExpenseMutation.mutate(id)
   }
 
   const total = expenses.reduce((s, e) => s + e.amount, 0)
@@ -116,9 +115,9 @@ export default function ExpensesPage() {
                 className="flex-1 border border-gray-200 py-3 rounded-xl font-medium text-gray-600">
                 বাতিল
               </button>
-              <button type="submit" disabled={saving}
+              <button type="submit" disabled={addExpenseMutation.isPending}
                 className="flex-1 bg-green-600 text-white py-3 rounded-xl font-medium disabled:bg-green-300">
-                {saving ? 'সংরক্ষণ...' : 'সংরক্ষণ করুন'}
+                {addExpenseMutation.isPending ? 'সংরক্ষণ...' : 'সংরক্ষণ করুন'}
               </button>
             </div>
           </form>

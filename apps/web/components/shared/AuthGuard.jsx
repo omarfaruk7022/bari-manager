@@ -6,15 +6,16 @@ import { useAuth } from '@/hooks/useAuth'
 export function AuthGuard({ children, role }) {
   const router = useRouter()
   const { user, loading } = useAuth()
+  const allowedRoles = Array.isArray(role) ? role : role ? [role] : []
 
   useEffect(() => {
     if (loading) return
     if (!user) { router.replace('/login'); return }
-    if (role && user.role !== role) {
+    if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
       const map = { admin: '/admin/dashboard', landlord: '/landlord/dashboard', tenant: '/tenant/dashboard' }
       router.replace(map[user.role] || '/login')
     }
-  }, [user, loading, role])
+  }, [user, loading, role, router, allowedRoles])
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -25,7 +26,7 @@ export function AuthGuard({ children, role }) {
     </div>
   )
 
-  if (!user || (role && user.role !== role)) return null
+  if (!user || (allowedRoles.length > 0 && !allowedRoles.includes(user.role))) return null
 
   return children
 }

@@ -1,41 +1,41 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { Plus, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api'
 import { BillCard } from '@/components/landlord/BillCard'
+import { request } from '@/lib/query'
 
 export default function BillsPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const now   = new Date()
   const cur   = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const [month, setMonth]   = useState(cur)
-  const [bills, setBills]   = useState([])
-  const [loading, setLoading] = useState(true)
-  const [generating, setGen]  = useState(false)
-
-  const load = async (m) => {
-    setLoading(true)
-    try {
-      const res = await api.get(`/landlord/bills?month=${m}`)
-      setBills(res.data.data)
-    } finally { setLoading(false) }
-  }
-
-  useEffect(() => { load(month) }, [month])
-
-  const bulkGenerate = async () => {
-    setGen(true)
-    try {
-      const [y, m] = month.split('-')
-      const res = await api.post('/landlord/bills/bulk-generate', { month, year: Number(y) })
-      toast.success(res.data.message)
-      load(month)
-    } catch (err) {
+  const { data: bills = [], isLoading: loading } = useQuery({
+    queryKey: ['landlord', 'bills', month],
+    queryFn: () => request({ url: `/landlord/bills?month=${month}` }),
+  })
+  const bulkGenerateMutation = useMutation({
+    mutationFn: async () => {
+      const [year] = month.split('-')
+      const res = await api.post('/landlord/bills/bulk-generate', { month, year: Number(year) })
+      return res.data
+    },
+    onSuccess: async (data) => {
+      toast.success(data.message)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['landlord', 'bills', month] }),
+        queryClient.invalidateQueries({ queryKey: ['landlord', 'recent-bills'] }),
+        queryClient.invalidateQueries({ queryKey: ['landlord', 'dashboard'] }),
+      ])
+    },
+    onError: (err) => {
       toast.error(err.response?.data?.message || 'সমস্যা হয়েছে')
-    } finally { setGen(false) }
-  }
+    },
+  })
 
   return (
     <div className="py-4 space-y-4">
@@ -59,12 +59,12 @@ export default function BillsPage() {
 
       {/* Bulk generate */}
       <button
-        onClick={bulkGenerate}
-        disabled={generating}
+        onClick={() => bulkGenerateMutation.mutate()}
+        disabled={bulkGenerateMutation.isPending}
         className="w-full flex items-center justify-center gap-2 border-2 border-green-600 text-green-600 py-3 rounded-xl font-medium disabled:opacity-50"
       >
         <Zap size={18} />
-        {generating ? 'তৈরি হচ্ছে...' : 'সকলের বিল একসাথে তৈরি করুন'}
+        {bulkGenerateMutation.isPending ? 'তৈরি হচ্ছে...' : 'সকলের বিল একসাথে তৈরি করুন'}
       </button>
 
       {/* Bills */}
@@ -78,7 +78,7 @@ export default function BillsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {bills.map(b => <BillCard key={b._id} bill={b} role="landlord" onRefresh={() => load(month)} />)}
+          {bills.map(b => <BillCard key={b._id} bill={b} role="landlord" queryKey={['landlord', 'bills', month]} />)}
         </div>
       )}
     </div>

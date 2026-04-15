@@ -1,9 +1,11 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
 import api from '@/lib/api'
+import { request } from '@/lib/query'
 
 const BILL_TYPES = [
   { value: 'rent',         label: 'ভাড়া' },
@@ -18,8 +20,6 @@ const BILL_TYPES = [
 
 export default function NewBillPage() {
   const router = useRouter()
-  const [tenants, setTenants]   = useState([])
-  const [loading, setLoading]   = useState(false)
   const now = new Date()
   const [form, setForm] = useState({
     tenantId: '', propertyId: '',
@@ -29,10 +29,20 @@ export default function NewBillPage() {
     dueDate: '',
   })
 
-  useEffect(() => {
-    api.get('/landlord/tenants?active=true&limit=100')
-      .then(r => setTenants(r.data.data))
-  }, [])
+  const { data: tenants = [] } = useQuery({
+    queryKey: ['landlord', 'tenants', 'bill-form'],
+    queryFn: () => request({ url: '/landlord/tenants?active=true&limit=100' }),
+  })
+  const createBillMutation = useMutation({
+    mutationFn: async (payload) => api.post('/landlord/bills', payload),
+    onSuccess: () => {
+      toast.success('বিল তৈরি হয়েছে!')
+      router.push('/landlord/bills')
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || 'সমস্যা হয়েছে')
+    },
+  })
 
   const addItem = () => setForm(f => ({ ...f, items: [...f.items, { type: 'rent', label: '', amount: '' }] }))
   const removeItem = (i) => setForm(f => ({ ...f, items: f.items.filter((_, idx) => idx !== i) }))
@@ -48,15 +58,8 @@ export default function NewBillPage() {
     e.preventDefault()
     if (!form.tenantId) return toast.error('ভাড়াটে বেছে নিন')
     if (form.items.some(i => !i.amount || i.amount <= 0)) return toast.error('সব বিলের পরিমাণ দিন')
-    setLoading(true)
-    try {
-      const items = form.items.map(i => ({ ...i, amount: Number(i.amount) }))
-      await api.post('/landlord/bills', { ...form, items, year: Number(form.year) })
-      toast.success('বিল তৈরি হয়েছে!')
-      router.push('/landlord/bills')
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'সমস্যা হয়েছে')
-    } finally { setLoading(false) }
+    const items = form.items.map(i => ({ ...i, amount: Number(i.amount) }))
+    createBillMutation.mutate({ ...form, items, year: Number(form.year) })
   }
 
   return (
@@ -142,9 +145,9 @@ export default function NewBillPage() {
           <span className="text-2xl font-bold text-green-600">৳{total.toLocaleString()}</span>
         </div>
 
-        <button type="submit" disabled={loading}
+        <button type="submit" disabled={createBillMutation.isPending}
           className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-semibold py-4 rounded-xl text-base">
-          {loading ? 'সংরক্ষণ হচ্ছে...' : 'বিল তৈরি করুন'}
+          {createBillMutation.isPending ? 'সংরক্ষণ হচ্ছে...' : 'বিল তৈরি করুন'}
         </button>
       </form>
     </div>

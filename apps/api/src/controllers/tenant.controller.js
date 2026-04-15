@@ -3,11 +3,12 @@ import Tenant from '../models/Tenant.model.js'
 import Property from '../models/Property.model.js'
 import User from '../models/User.model.js'
 import { sendCredentialsEmail } from '../services/email.service.js'
+import { isAdmin, withScopedFilter } from '../utils/access.js'
 
 export const list = async (req, res, next) => {
   try {
     const { active, page = 1, limit = 20, search } = req.query
-    const filter = { landlordId: req.user._id }
+    const filter = withScopedFilter(req, {}, { allowAllForAdmin: true })
     if (active !== undefined) filter.isActive = active === 'true'
     if (search) filter.name = { $regex: search, $options: 'i' }
 
@@ -24,9 +25,13 @@ export const list = async (req, res, next) => {
 
 export const getOne = async (req, res, next) => {
   try {
-    const tenant = await Tenant.findOne({ _id: req.params.id, landlordId: req.user._id })
+    const filter = isAdmin(req)
+      ? { _id: req.params.id }
+      : { _id: req.params.id, landlordId: req.user._id }
+    const tenant = await Tenant.findOne(filter)
       .populate('propertyId')
       .populate('userId', 'email lastLoginAt')
+      .populate('landlordId', 'name email phone')
     if (!tenant) return res.status(404).json({ success: false, message: 'ভাড়াটে পাওয়া যায়নি' })
     res.json({ success: true, data: tenant })
   } catch (err) { next(err) }
@@ -34,11 +39,15 @@ export const getOne = async (req, res, next) => {
 
 export const create = async (req, res, next) => {
   try {
-    const property = await Property.findOne({ _id: req.body.propertyId, landlordId: req.user._id })
+    const propertyFilter = isAdmin(req)
+      ? { _id: req.body.propertyId }
+      : { _id: req.body.propertyId, landlordId: req.user._id }
+    const property = await Property.findOne(propertyFilter)
     if (!property) return res.status(404).json({ success: false, message: 'ইউনিট পাওয়া যায়নি' })
     if (property.isOccupied) return res.status(400).json({ success: false, message: 'এই ইউনিটে ইতোমধ্যে ভাড়াটে আছে' })
 
-    const tenant = await Tenant.create({ ...req.body, landlordId: req.user._id })
+    const landlordId = property.landlordId
+    const tenant = await Tenant.create({ ...req.body, landlordId })
 
     // If email provided — create tenant user account
     if (req.body.email) {
@@ -49,7 +58,7 @@ export const create = async (req, res, next) => {
         phone: req.body.phone,
         password: tempPassword,
         role: 'tenant',
-        landlordId: req.user._id,
+        landlordId,
         mustChangePassword: true,
       })
       tenant.userId = tenantUser._id
@@ -67,8 +76,11 @@ export const create = async (req, res, next) => {
 
 export const update = async (req, res, next) => {
   try {
+    const filter = isAdmin(req)
+      ? { _id: req.params.id }
+      : { _id: req.params.id, landlordId: req.user._id }
     const tenant = await Tenant.findOneAndUpdate(
-      { _id: req.params.id, landlordId: req.user._id },
+      filter,
       req.body,
       { new: true, runValidators: true }
     )
@@ -79,12 +91,19 @@ export const update = async (req, res, next) => {
 
 export const remove = async (req, res, next) => {
   try {
-    const tenant = await Tenant.findOne({ _id: req.params.id, landlordId: req.user._id })
+    const filter = isAdmin(req)
+      ? { _id: req.params.id }
+      : { _id: req.params.id, landlordId: req.user._id }
+    const tenant = await Tenant.findOne(filter)
     if (!tenant) return res.status(404).json({ success: false, message: 'ভাড়াটে পাওয়া যায়নি' })
 
     tenant.isActive = false
     tenant.moveOutDate = new Date()
     await tenant.save()
+
+    if (tenant.userId) {
+      await User.findByIdAndUpdate(tenant.userId, { isActive: false })
+    }
 
     await Property.findByIdAndUpdate(tenant.propertyId, { isOccupied: false, currentTenantId: null })
 

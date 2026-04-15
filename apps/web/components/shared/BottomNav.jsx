@@ -20,8 +20,11 @@ const NAV_CONFIG = {
     { label: 'হোম',        icon: LayoutDashboard, path: '/admin/dashboard'      },
     { label: 'আবেদন',     icon: FileText,         path: '/admin/subscriptions'  },
     { label: 'ল্যান্ডলর্ড', icon: Users,           path: '/admin/landlords'      },
+    { label: 'ভাড়াটে',    icon: Users,            path: '/admin/tenants'        },
   ],
 }
+
+export { NAV_CONFIG }
 
 export function BottomNav({ role }) {
   const pathname = usePathname()
@@ -29,7 +32,7 @@ export function BottomNav({ role }) {
   const items    = NAV_CONFIG[role] || []
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-40 safe-area-pb">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-100 bg-white safe-area-pb lg:hidden">
       <div className="max-w-2xl mx-auto flex">
         {items.map(({ label, icon: Icon, path }) => {
           const active = pathname.startsWith(path)

@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { CheckCircle, ArrowLeft } from 'lucide-react'
@@ -11,23 +12,21 @@ export default function SubscribePage() {
     applicantName: '', email: '', phone: '',
     propertyName: '', propertyAddress: '', totalUnits: 1,
   })
-  const [loading, setLoading]   = useState(false)
   const [success, setSuccess]   = useState(false)
+  const subscribeMutation = useMutation({
+    mutationFn: async (payload) => api.post('/public/subscribe', payload),
+    onSuccess: () => setSuccess(true),
+    onError: (err) => {
+      toast.error(err.response?.data?.message || 'আবেদন ব্যর্থ হয়েছে')
+    },
+  })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.applicantName || !form.email || !form.phone)
       return toast.error('নাম, ইমেইল ও ফোন নম্বর দিন')
 
-    setLoading(true)
-    try {
-      await api.post('/public/subscribe', form)
-      setSuccess(true)
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'আবেদন ব্যর্থ হয়েছে')
-    } finally {
-      setLoading(false)
-    }
+    subscribeMutation.mutate(form)
   }
 
   if (success) return (
@@ -87,10 +86,10 @@ export default function SubscribePage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={subscribeMutation.isPending}
               className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-semibold py-3 rounded-xl text-base transition-colors"
             >
-              {loading ? 'জমা হচ্ছে...' : 'আবেদন জমা দিন'}
+              {subscribeMutation.isPending ? 'জমা হচ্ছে...' : 'আবেদন জমা দিন'}
             </button>
           </form>
         </div>

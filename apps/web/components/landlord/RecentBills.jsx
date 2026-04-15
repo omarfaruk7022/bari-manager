@@ -1,23 +1,21 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import api from '@/lib/api'
 import { BillCard } from './BillCard'
+import { request } from '@/lib/query'
 
 export function RecentBills() {
   const router = useRouter()
-  const [bills, setBills]   = useState([])
-  const [loading, setLoading] = useState(true)
 
   const now   = new Date()
   const month = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`
-
-  useEffect(() => {
-    api.get(`/landlord/bills?month=${month}&limit=3`)
-      .then(r => setBills(r.data.data.slice(0, 3)))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: bills = [], isLoading: loading } = useQuery({
+    queryKey: ['landlord', 'recent-bills', month],
+    queryFn: async () => {
+      const data = await request({ url: `/landlord/bills?month=${month}&limit=3` })
+      return data.slice(0, 3)
+    },
+  })
 
   if (loading) return <div className="h-32 bg-gray-100 rounded-2xl animate-pulse" />
   if (!bills.length) return null
@@ -31,7 +29,7 @@ export function RecentBills() {
         </button>
       </div>
       <div className="space-y-3">
-        {bills.map(b => <BillCard key={b._id} bill={b} role="landlord" onRefresh={() => {}} />)}
+        {bills.map(b => <BillCard key={b._id} bill={b} role="landlord" queryKey={['landlord', 'recent-bills', month]} />)}
       </div>
     </div>
   )
