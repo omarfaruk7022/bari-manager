@@ -1,37 +1,66 @@
-'use client'
-import { useMemo, useState } from 'react'
-import { useQueries } from '@tanstack/react-query'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { request } from '@/lib/query'
+"use client";
+import { useMemo, useState } from "react";
+import { useQueries } from "@tanstack/react-query";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
+import { request } from "@/lib/query";
 
-const MONTH_LABELS = ['জানু','ফেব্রু','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টে','অক্টো','নভে','ডিসে']
+const MONTH_LABELS = [
+  "জানু",
+  "ফেব্রু",
+  "মার্চ",
+  "এপ্রিল",
+  "মে",
+  "জুন",
+  "জুলাই",
+  "আগস্ট",
+  "সেপ্টে",
+  "অক্টো",
+  "নভে",
+  "ডিসে",
+];
 
 export default function ReportsPage() {
-  const now  = new Date()
-  const [year, setYear]       = useState(now.getFullYear())
-  const [month, setMonth]     = useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`)
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+  );
   const [yearlyQuery, monthlyQuery] = useQueries({
     queries: [
       {
-        queryKey: ['landlord', 'reports', 'yearly', year],
-        queryFn: () => request({ url: `/landlord/reports/yearly?year=${year}` }),
+        queryKey: ["landlord", "reports", "yearly", year],
+        queryFn: () =>
+          request({ url: `/landlord/reports/yearly?year=${year}` }),
       },
       {
-        queryKey: ['landlord', 'reports', 'monthly', month],
-        queryFn: () => request({ url: `/landlord/reports/monthly?month=${month}` }),
+        queryKey: ["landlord", "reports", "monthly", month],
+        queryFn: () =>
+          request({ url: `/landlord/reports/monthly?month=${month}` }),
       },
     ],
-  })
-  const yearly = yearlyQuery.data
-  const monthly = monthlyQuery.data
-  const loading = yearlyQuery.isLoading || monthlyQuery.isLoading
+  });
+  const yearly = yearlyQuery.data;
+  const monthly = monthlyQuery.data;
+  const loading = yearlyQuery.isLoading || monthlyQuery.isLoading;
 
-  const chartData = useMemo(() => yearly?.monthlyBreakdown?.map((m, i) => ({
-    name: MONTH_LABELS[i],
-    আদায়: m.collected,
-    খরচ:  m.expenses,
-    লাভ:  m.profit,
-  })) || [], [yearly])
+  const chartData = useMemo(
+    () =>
+      yearly?.monthlyBreakdown?.map((m, i) => ({
+        name: MONTH_LABELS[i],
+        আদায়: m.collected,
+        খরচ: m.expenses,
+        লাভ: m.profit,
+      })) || [],
+    [yearly],
+  );
 
   return (
     <div className="py-4 space-y-5">
@@ -39,14 +68,22 @@ export default function ReportsPage() {
 
       {/* Year selector */}
       <div className="flex items-center gap-3">
-        <label className="text-sm font-medium text-gray-600 whitespace-nowrap">বার্ষিক:</label>
+        <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
+          বার্ষিক:
+        </label>
         <select
           className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-base bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
           value={year}
-          onChange={e => setYear(Number(e.target.value))}
+          onChange={(e) => setYear(Number(e.target.value))}
         >
-          {[now.getFullYear(), now.getFullYear()-1, now.getFullYear()-2].map(y => (
-            <option key={y} value={y}>{y}</option>
+          {[
+            now.getFullYear(),
+            now.getFullYear() - 1,
+            now.getFullYear() - 2,
+          ].map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
           ))}
         </select>
       </div>
@@ -56,33 +93,44 @@ export default function ReportsPage() {
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-green-50 rounded-2xl p-3 text-center">
             <p className="text-xs text-gray-500">মোট আদায়</p>
-            <p className="font-bold text-green-700 mt-1 text-sm">৳{(yearly.totalCollected/1000).toFixed(1)}K</p>
+            <p className="font-bold text-green-700 mt-1 text-sm">
+              ৳{(yearly.totalCollected / 1000).toFixed(1)}K
+            </p>
           </div>
           <div className="bg-red-50 rounded-2xl p-3 text-center">
             <p className="text-xs text-gray-500">মোট খরচ</p>
-            <p className="font-bold text-red-600 mt-1 text-sm">৳{(yearly.totalExpenses/1000).toFixed(1)}K</p>
+            <p className="font-bold text-red-600 mt-1 text-sm">
+              ৳{(yearly.totalExpenses / 1000).toFixed(1)}K
+            </p>
           </div>
           <div className="bg-blue-50 rounded-2xl p-3 text-center">
             <p className="text-xs text-gray-500">মোট লাভ</p>
-            <p className="font-bold text-blue-700 mt-1 text-sm">৳{(yearly.totalProfit/1000).toFixed(1)}K</p>
+            <p className="font-bold text-blue-700 mt-1 text-sm">
+              ৳{(yearly.totalProfit / 1000).toFixed(1)}K
+            </p>
           </div>
         </div>
       )}
 
       {/* Bar chart */}
       <div className="bg-white rounded-2xl p-4 shadow-sm">
-        <h2 className="font-semibold text-gray-700 mb-4">{year} সালের মাসিক চিত্র</h2>
+        <h2 className="font-semibold text-gray-700 mb-4">
+          {year} সালের মাসিক চিত্র
+        </h2>
         {loading ? (
           <div className="h-48 bg-gray-100 rounded-xl animate-pulse" />
         ) : (
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+            <BarChart
+              data={chartData}
+              margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip formatter={(v) => `৳${v.toLocaleString()}`} />
-              <Bar dataKey="আদায়" fill="#16a34a" radius={[4,4,0,0]} />
-              <Bar dataKey="খরচ"  fill="#ef4444" radius={[4,4,0,0]} />
+              <Bar dataKey="আদায়" fill="#16a34a" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="খরচ" fill="#ef4444" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -91,12 +139,14 @@ export default function ReportsPage() {
       {/* Monthly detail */}
       <div>
         <div className="flex items-center gap-3 mb-3">
-          <label className="text-sm font-medium text-gray-600 whitespace-nowrap">মাসিক:</label>
+          <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
+            মাসিক:
+          </label>
           <input
             type="month"
             className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
             value={month}
-            onChange={e => setMonth(e.target.value)}
+            onChange={(e) => setMonth(e.target.value)}
           />
         </div>
 
@@ -104,35 +154,71 @@ export default function ReportsPage() {
           <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
             <h2 className="font-semibold text-gray-700">{month} মাসের বিবরণ</h2>
             {[
-              { label: 'সক্রিয় ভাড়াটে',  value: monthly.activeTenants,                    unit: 'জন' },
-              { label: 'মোট বিল',           value: `৳${monthly.totalBilled?.toLocaleString()}`, unit: '' },
-              { label: 'আদায়',              value: `৳${monthly.totalCollected?.toLocaleString()}`, unit: '' },
-              { label: 'বকেয়া',             value: `৳${monthly.totalDue?.toLocaleString()}`,  unit: '' },
-              { label: 'মোট খরচ',           value: `৳${monthly.totalExpenses?.toLocaleString()}`, unit: '' },
-              { label: 'নিট লাভ',           value: `৳${monthly.profit?.toLocaleString()}`,   unit: '' },
-            ].map(row => (
-              <div key={row.label} className="flex justify-between py-2 border-b border-gray-100 last:border-0">
+              {
+                label: "বসবাসরত ভাড়াটিয়া ",
+                value: monthly.activeTenants,
+                unit: "জন",
+              },
+              {
+                label: "মোট বিল",
+                value: `৳${monthly.totalBilled?.toLocaleString()}`,
+                unit: "",
+              },
+              {
+                label: "আদায়",
+                value: `৳${monthly.totalCollected?.toLocaleString()}`,
+                unit: "",
+              },
+              {
+                label: "বকেয়া",
+                value: `৳${monthly.totalDue?.toLocaleString()}`,
+                unit: "",
+              },
+              {
+                label: "মোট খরচ",
+                value: `৳${monthly.totalExpenses?.toLocaleString()}`,
+                unit: "",
+              },
+              {
+                label: "নিট লাভ",
+                value: `৳${monthly.profit?.toLocaleString()}`,
+                unit: "",
+              },
+            ].map((row) => (
+              <div
+                key={row.label}
+                className="flex justify-between py-2 border-b border-gray-100 last:border-0"
+              >
                 <span className="text-gray-600">{row.label}</span>
-                <span className="font-semibold text-gray-900">{row.value}{row.unit}</span>
+                <span className="font-semibold text-gray-900">
+                  {row.value}
+                  {row.unit}
+                </span>
               </div>
             ))}
             <div className="flex gap-3 pt-2">
               <div className="flex-1 bg-green-50 rounded-xl p-3 text-center">
                 <p className="text-xs text-gray-500">পরিশোধিত</p>
-                <p className="text-xl font-bold text-green-600">{monthly.statusBreakdown?.paid}</p>
+                <p className="text-xl font-bold text-green-600">
+                  {monthly.statusBreakdown?.paid}
+                </p>
               </div>
               <div className="flex-1 bg-yellow-50 rounded-xl p-3 text-center">
                 <p className="text-xs text-gray-500">আংশিক</p>
-                <p className="text-xl font-bold text-yellow-600">{monthly.statusBreakdown?.partial}</p>
+                <p className="text-xl font-bold text-yellow-600">
+                  {monthly.statusBreakdown?.partial}
+                </p>
               </div>
               <div className="flex-1 bg-red-50 rounded-xl p-3 text-center">
                 <p className="text-xs text-gray-500">অপরিশোধিত</p>
-                <p className="text-xl font-bold text-red-600">{monthly.statusBreakdown?.unpaid}</p>
+                <p className="text-xl font-bold text-red-600">
+                  {monthly.statusBreakdown?.unpaid}
+                </p>
               </div>
             </div>
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }
