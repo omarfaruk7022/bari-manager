@@ -7,6 +7,7 @@ import * as R  from '../controllers/report.controller.js'
 import * as N  from '../controllers/notification.controller.js'
 import * as PM from '../controllers/payment.controller.js'
 import { validate, tenantCreateSchema, billCreateSchema, propertyCreateSchema, expenseCreateSchema, cashPaymentSchema } from '../middlewares/validate.js'
+import LandlordProfile from '../models/LandlordProfile.model.js'
 
 const router = Router()
 
@@ -25,11 +26,12 @@ router.delete('/tenants/:id',        T.remove)
 
 // Bills
 router.get('/bills',                 B.list)
+router.post('/bills/bulk-generate',  B.bulkGenerate)
 router.post('/bills',                validate(billCreateSchema), B.create)
+router.get('/bills/:id/invoice',     B.getInvoice)
 router.get('/bills/:id',             B.getOne)
 router.put('/bills/:id',             B.update)
 router.delete('/bills/:id',          B.remove)
-router.post('/bills/bulk-generate',  B.bulkGenerate)
 
 // Expenses
 router.get('/expenses',              E.list)
@@ -48,5 +50,26 @@ router.get('/reports/yearly',        R.yearly)
 
 // Notices
 router.post('/notices',              N.sendNotice)
+
+// Profile & Bill Settings
+router.get('/profile', async (req, res, next) => {
+  try {
+    const profile = await LandlordProfile.findOne({ userId: req.user._id })
+    res.json({ success: true, data: profile })
+  } catch (err) { next(err) }
+})
+
+router.put('/bill-settings', async (req, res, next) => {
+  try {
+    const { billGenerationDay, billDueDays } = req.body
+    const profile = await LandlordProfile.findOneAndUpdate(
+      { userId: req.user._id },
+      { billGenerationDay, billDueDays },
+      { new: true }
+    )
+    if (!profile) return res.status(404).json({ success: false, message: 'প্রোফাইল পাওয়া যায়নি' })
+    res.json({ success: true, message: 'বিল সেটিং আপডেট হয়েছে', data: profile })
+  } catch (err) { next(err) }
+})
 
 export default router

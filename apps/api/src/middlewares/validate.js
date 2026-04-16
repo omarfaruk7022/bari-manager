@@ -31,7 +31,7 @@ export const loginSchema = Joi.object({
 
 export const subscriptionApplySchema = Joi.object({
   applicantName: Joi.string().min(2).required(),
-  email: Joi.string().email().required(),
+  email: Joi.string().email().optional(),
   phone: Joi.string().min(10).required(),
   propertyName: Joi.string().allow(""),
   propertyAddress: Joi.string().allow(""),
@@ -50,6 +50,13 @@ export const tenantCreateSchema = Joi.object({
   emergencyContact: Joi.object({
     name: Joi.string().allow(""),
     phone: Joi.string().allow(""),
+  }).optional(),
+  utilityDefaults: Joi.object({
+    gasAmount: Joi.number().min(0).default(0),
+    waterAmount: Joi.number().min(0).default(0),
+    serviceCharge: Joi.number().min(0).default(0),
+    garbageAmount: Joi.number().min(0).default(0),
+    electricityAmount: Joi.number().min(0).default(0),
   }).optional(),
   notes: Joi.string().allow(""),
 });

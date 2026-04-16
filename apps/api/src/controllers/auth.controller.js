@@ -1,35 +1,79 @@
-import jwt from 'jsonwebtoken'
-import User from '../models/User.model.js'
-import Notification from '../models/Notification.model.js'
+import crypto from "crypto";
+import jwt from "jsonwebtoken";
+import User from "../models/User.model.js";
+import Notification from "../models/Notification.model.js";
+import { sendCredentialsEmail } from "../services/email.service.js";
+import {
+  sendOtpSMS,
+  sendPasswordResetSMS,
+  sendCredentialsSMS,
+} from "../services/sms.service.js";
 
 const signToken = (user) =>
   jwt.sign(
     { id: user._id, role: user.role, landlordId: user.landlordId },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-  )
+    { expiresIn: process.env.JWT_EXPIRES_IN || "7d" },
+  );
 
 const REDIRECT = {
-  admin:    '/admin/dashboard',
-  landlord: '/landlord/dashboard',
-  tenant:   '/tenant/dashboard',
+  admin: "/admin/dashboard",
+  landlord: "/landlord/dashboard",
+  tenant: "/tenant/dashboard",
+};
+
+export function normalizeBDPhone(phone) {
+  if (!phone) return phone;
+
+  // remove সব non-digit
+  let cleaned = phone.replace(/\D/g, "");
+
+  // যদি already 880 দিয়ে শুরু হয়
+  if (cleaned.startsWith("880")) {
+    return cleaned;
+  }
+
+  // যদি 0 দিয়ে শুরু হয় (01...)
+  if (cleaned.startsWith("0")) {
+    return "88" + cleaned;
+  }
+
+  // যদি 1 দিয়ে শুরু হয় (1888...)
+  if (cleaned.startsWith("1")) {
+    return "880" + cleaned;
+  }
+
+  return cleaned;
 }
 
+// ─── Login (email or phone) ──────────────────────────────────────────────────
 export const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body
-    const user = await User.findOne({ email }).select('+password')
+    const { email, phone, password } = req.body;
+    console.log("REQ BODY:", req.body);
+    const identifier = email || normalizeBDPhone(phone);
+    console.log("IDENTIFIER:", identifier);
+    if (!identifier || !password)
+      return res.status(400).json({ success: false, message: "লগইন তথ্য দিন" });
+
+    const user = await User.findByLogin(identifier);
+    console.log("USER:", user);
 
     if (!user || !(await user.comparePassword(password)))
-      return res.status(401).json({ success: false, message: 'ইমেইল বা পাসওয়ার্ড ভুল' })
+      return res
+        .status(401)
+        .json({ success: false, message: "মোবাইল/ইমেইল বা পাসওয়ার্ড ভুল" });
 
     if (!user.isActive)
-      return res.status(403).json({ success: false, message: 'অ্যাকাউন্ট নিষ্ক্রিয়। অ্যাডমিনের সাথে যোগাযোগ করুন।' })
+      return res.status(403).json({
+        success: false,
+        message: "অ্যাকাউন্ট নিষ্ক্রিয়। অ্যাডমিনের সাথে যোগাযোগ করুন।",
+      });
 
-    user.lastLoginAt = new Date()
-    await user.save({ validateBeforeSave: false })
+    user.lastLoginAt = new Date();
+    await user.save({ validateBeforeSave: false });
 
-    const token = signToken(user)
+    const token = signToken(user);
 
     res.json({
       success: true,
@@ -39,38 +83,194 @@ export const login = async (req, res, next) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: normalizeBDPhone(user.phone),
         role: user.role,
         mustChangePassword: user.mustChangePassword,
+        language: user.language || "bn",
       },
-    })
+    });
   } catch (err) {
-    next(err)
+    next(err);
   }
-}
+};
 
 export const me = async (req, res) => {
-  const unread = await Notification.countDocuments({ userId: req.user._id, isRead: false })
-  res.json({ success: true, user: req.user, unreadNotifications: unread })
-}
+  const unread = await Notification.countDocuments({
+    userId: req.user._id,
+    isRead: false,
+  });
+  res.json({ success: true, user: req.user, unreadNotifications: unread });
+};
 
+// ─── Change Password ─────────────────────────────────────────────────────────
 export const changePassword = async (req, res, next) => {
   try {
-    const { currentPassword, newPassword } = req.body
-    const user = await User.findById(req.user._id).select('+password')
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user._id).select("+password");
 
     if (!(await user.comparePassword(currentPassword)))
-      return res.status(401).json({ success: false, message: 'বর্তমান পাসওয়ার্ড ভুল' })
+      return res
+        .status(401)
+        .json({ success: false, message: "বর্তমান পাসওয়ার্ড ভুল" });
 
-    user.password = newPassword
-    user.mustChangePassword = false
-    await user.save()
+    user.password = newPassword;
+    user.mustChangePassword = false;
+    await user.save();
 
-    res.json({ success: true, message: 'পাসওয়ার্ড পরিবর্তন হয়েছে' })
+    res.json({ success: true, message: "পাসওয়ার্ড পরিবর্তন হয়েছে" });
   } catch (err) {
-    next(err)
+    next(err);
   }
-}
+};
+
+// ─── Forgot Password (SMS OTP, fallback to email) ───────────────────────────
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const { phone, email } = req.body;
+    const identifier = phone || email;
+    if (!identifier)
+      return res
+        .status(400)
+        .json({ success: false, message: "মোবাইল নম্বর বা ইমেইল দিন" });
+
+    const user = await User.findByLogin(identifier);
+    if (!user)
+      return res.status(404).json({
+        success: false,
+        message: "এই তথ্যে কোনো অ্যাকাউন্ট পাওয়া যায়নি",
+      });
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    user.resetOtp = otp;
+    user.resetOtpExpiry = expiry;
+    await user.save({ validateBeforeSave: false });
+
+    let sent = false;
+
+    // Prefer SMS (BD users prefer this)
+    if (user.phone) {
+      const smsResult = await sendOtpSMS({
+        phone: normalizeBDPhone(user.phone),
+        otp,
+      });
+      sent = smsResult?.success;
+    }
+
+    // Fallback to email
+    if (user.email) {
+      try {
+        const { sendEmail } = await import("../services/email.service.js");
+        await sendEmail({
+          to: user.email,
+          subject: "BariManager - পাসওয়ার্ড রিসেট OTP",
+          html: `<p>আপনার OTP: <strong>${otp}</strong>। ৫ মিনিটের মধ্যে ব্যবহার করুন।</p>`,
+        });
+        sent = true;
+      } catch {}
+    }
+
+    if (!sent) {
+      console.error("❌ Could not send OTP via SMS or email");
+    }
+
+    // Always respond success to prevent user enumeration
+    res.json({
+      success: true,
+      message: "OTP পাঠানো হয়েছে",
+      via: user.phone ? "sms" : "email",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── Verify OTP & Reset Password ─────────────────────────────────────────────
+export const resetPassword = async (req, res, next) => {
+  try {
+    const { phone, email, otp, newPassword } = req.body;
+    if (!otp || !newPassword)
+      return res
+        .status(400)
+        .json({ success: false, message: "OTP এবং নতুন পাসওয়ার্ড দিন" });
+
+    const identifier = normalizeBDPhone(phone) || email;
+    const user = await User.findByLogin(identifier).select(
+      "+resetOtp +resetOtpExpiry",
+    );
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "অ্যাকাউন্ট পাওয়া যায়নি" });
+
+    if (!user.resetOtp || user.resetOtp !== otp)
+      return res.status(400).json({ success: false, message: "OTP সঠিক নয়" });
+
+    if (!user.resetOtpExpiry || user.resetOtpExpiry < new Date())
+      return res
+        .status(400)
+        .json({ success: false, message: "OTP মেয়াদ শেষ। আবার চেষ্টা করুন।" });
+
+    user.password = newPassword;
+    user.resetOtp = undefined;
+    user.resetOtpExpiry = undefined;
+    user.mustChangePassword = false;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "পাসওয়ার্ড পরিবর্তন হয়েছে। লগইন করুন।",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── Admin: reset any user's password ────────────────────────────────────────
+export const adminResetPassword = async (req, res, next) => {
+  try {
+    const { userId, newPassword } = req.body;
+    const user = await User.findById(userId);
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "ব্যবহারকারী পাওয়া যায়নি" });
+
+    user.password = newPassword;
+    user.mustChangePassword = true;
+    await user.save();
+
+    // Notify via SMS/email
+    if (user.phone) {
+      await sendPasswordResetSMS({
+        name: user.name,
+        phone: normalizeBDPhone(user.phone),
+        newPassword,
+      });
+    }
+
+    res.json({ success: true, message: "পাসওয়ার্ড পরিবর্তন হয়েছে" });
+  } catch (err) {
+    next(err);
+  }
+};
 
 export const logout = (req, res) => {
-  res.json({ success: true, message: 'লগআউট সফল' })
-}
+  res.json({ success: true, message: "লগআউট সফল" });
+};
+
+export const updateLanguage = async (req, res, next) => {
+  try {
+    const { language } = req.body;
+    if (!["bn", "en"].includes(language))
+      return res
+        .status(400)
+        .json({ success: false, message: "ভাষা bn অথবা en হতে হবে" });
+    await User.findByIdAndUpdate(req.user._id, { language });
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};

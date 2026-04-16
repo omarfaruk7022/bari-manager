@@ -26,3 +26,10 @@ export const getToken = () => {
   if (typeof window === 'undefined') return null
   return localStorage.getItem('bm_token')
 }
+
+export const clearAuth = () => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('bm_token')
+    localStorage.removeItem('bm_user')
+  }
+}

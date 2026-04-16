@@ -1,61 +1,31 @@
 {
-  "app": {
-    "name": "BariManager",
-    "tagline": "House Rental Management System"
-  },
+  "app": { "name": "BariManager", "tagline": "House Rent Management System" },
   "nav": {
-    "home": "Home",
-    "tenants": "Tenants",
-    "bills": "Bills",
-    "expenses": "Expenses",
-    "reports": "Reports",
-    "notices": "Notices",
-    "payments": "Payments",
-    "logout": "Logout"
+    "home": "Home", "tenants": "Tenants", "bills": "Bills",
+    "expenses": "Expenses", "reports": "Reports", "notices": "Notices",
+    "payments": "Payments", "logout": "Logout", "settings": "Settings"
   },
   "common": {
-    "save": "Save",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "edit": "Edit",
-    "add": "Add",
-    "loading": "Loading...",
-    "noData": "No data found",
-    "confirm": "Confirm",
-    "back": "Back",
-    "search": "Search"
+    "save": "Save", "cancel": "Cancel", "delete": "Delete", "edit": "Edit",
+    "add": "Add", "loading": "Loading...", "noData": "No data found",
+    "confirm": "Confirm", "back": "Back", "search": "Search"
   },
   "auth": {
-    "login": "Login",
-    "logout": "Logout",
-    "email": "Email",
-    "password": "Password",
-    "loginBtn": "Login",
-    "loggingIn": "Logging in...",
-    "invalidCredentials": "Invalid email or password"
+    "login": "Login", "logout": "Logout", "email": "Email", "phone": "Mobile",
+    "password": "Password", "loginBtn": "Login", "loggingIn": "Logging in...",
+    "invalidCredentials": "Invalid mobile/email or password",
+    "forgotPassword": "Forgot Password?", "sendOtp": "Send OTP",
+    "verifyOtp": "Verify OTP", "resetPassword": "Reset Password"
   },
   "bill": {
-    "title": "Bill",
-    "rent": "Rent",
-    "electricity": "Electricity",
-    "gas": "Gas",
-    "water": "Water",
-    "garbage": "Garbage",
-    "internet": "Internet",
-    "maintenance": "Maintenance",
-    "custom": "Custom",
-    "total": "Total",
-    "paid": "Paid",
-    "due": "Due",
-    "unpaid": "Unpaid",
-    "partial": "Partial"
+    "title": "Bill", "rent": "Rent", "electricity": "Electricity",
+    "gas": "Gas", "water": "Water", "garbage": "Garbage",
+    "internet": "Internet", "maintenance": "Maintenance", "custom": "Other",
+    "total": "Total", "paid": "Paid", "due": "Due",
+    "unpaid": "Unpaid", "partial": "Partial"
   },
   "payment": {
-    "bkash": "bKash",
-    "cash": "Cash",
-    "bank": "Bank Transfer",
-    "success": "Success",
-    "failed": "Failed",
-    "pending": "Pending"
+    "bkash": "bKash", "cash": "Cash", "bank": "Bank Transfer",
+    "success": "Success", "failed": "Failed", "pending": "Pending"
   }
 }

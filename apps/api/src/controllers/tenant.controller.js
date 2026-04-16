@@ -3,7 +3,54 @@ import Tenant from "../models/Tenant.model.js";
 import Property from "../models/Property.model.js";
 import User from "../models/User.model.js";
 import { sendCredentialsEmail } from "../services/email.service.js";
+import { sendCredentialsSMS } from "../services/sms.service.js";
 import { isAdmin, withScopedFilter } from "../utils/access.js";
+
+// Generate a readable 8-char password (no ambiguous chars)
+function generatePassword() {
+  const chars = "abcdefghjkmnpqrstuvwxyz23456789";
+  let pass = "";
+  const bytes = crypto.randomBytes(8);
+  for (let i = 0; i < 8; i++) {
+    pass += chars[bytes[i] % chars.length];
+  }
+  return pass;
+}
+
+export function normalizeBDPhone(phone) {
+  if (!phone) return phone;
+
+  // remove সব non-digit
+  let cleaned = phone.replace(/\D/g, "");
+
+  // যদি already 880 দিয়ে শুরু হয়
+  if (cleaned.startsWith("880")) {
+    return cleaned;
+  }
+
+  // যদি 0 দিয়ে শুরু হয় (01...)
+  if (cleaned.startsWith("0")) {
+    return "88" + cleaned;
+  }
+
+  // যদি 1 দিয়ে শুরু হয় (1888...)
+  if (cleaned.startsWith("1")) {
+    return "880" + cleaned;
+  }
+
+  return cleaned;
+}
+// Send credentials via SMS (primary) and/or email
+async function sendCredentials({ name, phone, email, password }) {
+  if (phone) {
+    await sendCredentialsSMS({ name, phone, password, loginId: phone });
+  }
+  if (email) {
+    await sendCredentialsEmail({ name, email, password }).catch((err) =>
+      console.error("Email send error (non-fatal):", err.message),
+    );
+  }
+}
 
 export const list = async (req, res, next) => {
   try {
@@ -32,7 +79,7 @@ export const getOne = async (req, res, next) => {
       : { _id: req.params.id, landlordId: req.user._id };
     const tenant = await Tenant.findOne(filter)
       .populate("propertyId")
-      .populate("userId", "email lastLoginAt")
+      .populate("userId", "email phone lastLoginAt")
       .populate("landlordId", "name email phone");
     if (!tenant)
       return res
@@ -46,69 +93,88 @@ export const getOne = async (req, res, next) => {
 
 export const create = async (req, res, next) => {
   try {
+    // 🔹 normalize phone first
+    const normalizedPhone = normalizeBDPhone(req.body.phone);
+
     const propertyFilter = isAdmin(req)
       ? { _id: req.body.propertyId }
       : { _id: req.body.propertyId, landlordId: req.user._id };
+
     const property = await Property.findOne(propertyFilter);
-    if (!property)
-      return res
-        .status(404)
-        .json({ success: false, message: "ইউনিট পাওয়া যায়নি" });
-    if (property.isOccupied)
-      return res
-        .status(400)
-        .json({ success: false, message: "এই ইউনিটে ইতোমধ্যে ভাড়াটে আছে" });
 
-    const landlordId = property.landlordId;
-    const tenant = await Tenant.create({ ...req.body, landlordId });
-
-    // If email provided — create tenant user account
-    if (req.body.email) {
-      const tempPassword = crypto.randomBytes(5).toString("hex");
-      const tenantUser = await User.create({
-        name: req.body.name,
-        email: req.body.email,
-        phone: req.body.phone,
-        password: tempPassword,
-        role: "tenant",
-        landlordId,
-        mustChangePassword: true,
-      });
-      tenant.userId = tenantUser._id;
-      await tenant.save();
-      await sendCredentialsEmail({
-        name: req.body.name,
-        email: req.body.email,
-        password: tempPassword,
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: "ইউনিট পাওয়া যায়নি",
       });
     }
 
+    if (property.isOccupied) {
+      return res.status(400).json({
+        success: false,
+        message: "এই ইউনিটে ইতোমধ্যে ভাড়াটে আছে",
+      });
+    }
+
+    const landlordId = property.landlordId;
+
+    // 🔹 create tenant with normalized phone
+    const tenant = await Tenant.create({
+      ...req.body,
+      phone: normalizedPhone,
+      landlordId,
+    });
+
+    // 🔹 Create user account if phone OR email provided
+    if (normalizedPhone || req.body.email) {
+      const tempPassword = generatePassword();
+
+      // 🔹 check existing user by normalized phone
+      const existingUser = normalizedPhone
+        ? await User.findOne({ phone: normalizedPhone, role: "tenant" })
+        : null;
+
+      if (!existingUser) {
+        const tenantUser = await User.create({
+          name: req.body.name,
+          email: req.body.email || undefined,
+          phone: normalizedPhone,
+          password: tempPassword,
+          role: "tenant",
+          landlordId,
+          mustChangePassword: true,
+        });
+
+        tenant.userId = tenantUser._id;
+        await tenant.save();
+
+        // 🔹 send credentials (SMS বা Email)
+        await sendCredentials({
+          name: req.body.name,
+          phone: normalizedPhone,
+          email: req.body.email,
+          password: tempPassword,
+        });
+      } else {
+        tenant.userId = existingUser._id;
+        await tenant.save();
+      }
+    }
+
+    // 🔹 update property status
     property.isOccupied = true;
     property.currentTenantId = tenant._id;
     await property.save();
 
-    res
-      .status(201)
-      .json({ success: true, message: "ভাড়াটে যুক্ত হয়েছে", data: tenant });
+    return res.status(201).json({
+      success: true,
+      message: "ভাড়াটে যুক্ত হয়েছে",
+      data: tenant,
+    });
   } catch (err) {
     next(err);
   }
 };
-
-// export const update = async (req, res, next) => {
-//   try {
-//     const filter = isAdmin(req)
-//       ? { _id: req.params.id }
-//       : { _id: req.params.id, landlordId: req.user._id }
-//     const tenant = await Tenant.findOneAndUpdate(
-//       filter,
-//       req.body,
-//       { new: true, runValidators: true }
-//     )
-//     if (!tenant) return res.status(404).json({ success: false, message: 'ভাড়াটে পাওয়া যায়নি' })
-//     res.json({ success: true, message: 'তথ্য আপডেট হয়েছে', data: tenant })
-//   } catch (err) { next(err) }
-// }
 
 export const update = async (req, res, next) => {
   try {
@@ -125,17 +191,22 @@ export const update = async (req, res, next) => {
       });
     }
 
-    // 🔥 STEP 1: email handle
-    if (req.body.email && req.body.email.trim() !== "") {
-      if (!tenant.userId) {
-        console.log("Creating user...");
+    // 🔹 normalize phone
+    const normalizedPhone = normalizeBDPhone(req.body.phone);
 
-        const tempPassword = crypto.randomBytes(5).toString("hex");
+    const { email, name } = req.body;
+    const hasIdentifier =
+      (email && email.trim()) || (normalizedPhone && normalizedPhone.trim());
+
+    if (hasIdentifier) {
+      if (!tenant.userId) {
+        // 🔹 Create user
+        const tempPassword = generatePassword();
 
         const tenantUser = await User.create({
-          name: req.body.name || tenant.name,
-          email: req.body.email,
-          phone: req.body.phone || tenant.phone,
+          name: name || tenant.name,
+          email: email || undefined,
+          phone: normalizedPhone || tenant.phone,
           password: tempPassword,
           role: "tenant",
           landlordId: tenant.landlordId,
@@ -145,24 +216,30 @@ export const update = async (req, res, next) => {
         tenant.userId = tenantUser._id;
         await tenant.save();
 
-        await sendCredentialsEmail({
+        await sendCredentials({
           name: tenant.name,
-          email: req.body.email,
+          phone: normalizedPhone || tenant.phone,
+          email: email,
           password: tempPassword,
         });
       } else {
-        console.log("Updating user...");
+        // 🔹 Update existing user
+        const updateFields = {};
 
-        await User.findByIdAndUpdate(tenant.userId, {
-          email: req.body.email,
-          name: req.body.name || tenant.name,
-          phone: req.body.phone || tenant.phone,
-        });
+        if (name) updateFields.name = name;
+        if (email) updateFields.email = email;
+        if (normalizedPhone) updateFields.phone = normalizedPhone;
+
+        await User.findByIdAndUpdate(tenant.userId, updateFields);
       }
     }
 
-    // 🔥 STEP 2: update tenant data
-    Object.assign(tenant, req.body);
+    // 🔹 Update tenant (important: phone normalized)
+    Object.assign(tenant, {
+      ...req.body,
+      phone: normalizedPhone || tenant.phone,
+    });
+
     await tenant.save();
 
     res.json({

@@ -21,7 +21,7 @@ api.interceptors.response.use(
     if (err.response?.status === 401 && typeof window !== "undefined") {
       localStorage.removeItem("bm_token");
       localStorage.removeItem("bm_user");
-      window.location.href = "/login";
+      // window.location.href = "/login";
     }
     return Promise.reject(err);
   },
