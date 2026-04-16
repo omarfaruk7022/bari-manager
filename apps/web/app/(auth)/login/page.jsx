@@ -41,9 +41,14 @@ export default function LoginPage() {
     onSuccess: (data) => {
       setOtpVia(data.via || "sms");
       setMode("otp");
-      toast.success(data.via === "sms" ? "OTP SMS পাঠানো হয়েছে" : "OTP ইমেইলে পাঠানো হয়েছে");
+      toast.success(
+        data.via === "sms"
+          ? "OTP SMS পাঠানো হয়েছে"
+          : "OTP ইমেইলে পাঠানো হয়েছে",
+      );
     },
-    onError: (err) => toast.error(err.response?.data?.message || "সমস্যা হয়েছে"),
+    onError: (err) =>
+      toast.error(err.response?.data?.message || "সমস্যা হয়েছে"),
   });
 
   const resetMutation = useMutation({
@@ -54,17 +59,21 @@ export default function LoginPage() {
     onSuccess: () => {
       toast.success("পাসওয়ার্ড পরিবর্তন হয়েছে! লগইন করুন।");
       setMode("login");
-      setOtp(""); setNewPass(""); setForgotId("");
+      setOtp("");
+      setNewPass("");
+      setForgotId("");
     },
-    onError: (err) => toast.error(err.response?.data?.message || "সমস্যা হয়েছে"),
+    onError: (err) =>
+      toast.error(err.response?.data?.message || "সমস্যা হয়েছে"),
   });
 
   const handleLogin = (e) => {
     e.preventDefault();
     if (!form.identifier || !form.password) return toast.error("সব তথ্য দিন");
-    const payload = loginBy === "phone"
-      ? { phone: form.identifier, password: form.password }
-      : { email: form.identifier, password: form.password };
+    const payload =
+      loginBy === "phone"
+        ? { phone: form.identifier, password: form.password }
+        : { email: form.identifier, password: form.password };
     loginMutation.mutate(payload);
   };
 
@@ -78,11 +87,13 @@ export default function LoginPage() {
   const handleReset = (e) => {
     e.preventDefault();
     if (!otp || !newPass) return toast.error("OTP ও নতুন পাসওয়ার্ড দিন");
-    if (newPass.length < 6) return toast.error("পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে");
+    if (newPass.length < 6)
+      return toast.error("পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে");
     const isPhone = /^[0-9+]/.test(forgotId);
-    resetMutation.mutate(isPhone
-      ? { phone: forgotId, otp, newPassword: newPass }
-      : { email: forgotId, otp, newPassword: newPass }
+    resetMutation.mutate(
+      isPhone
+        ? { phone: forgotId, otp, newPassword: newPass }
+        : { email: forgotId, otp, newPassword: newPass },
     );
   };
 
@@ -98,11 +109,12 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg p-6">
-
           {/* ── LOGIN ── */}
           {mode === "login" && (
             <>
-              <h2 className="text-xl font-semibold text-gray-800 mb-5 text-center">লগইন করুন</h2>
+              <h2 className="text-xl font-semibold text-gray-800 mb-5 text-center">
+                লগইন করুন
+              </h2>
 
               {/* Toggle phone/email */}
               <div className="flex rounded-xl border border-gray-200 overflow-hidden mb-5">
@@ -127,17 +139,27 @@ export default function LoginPage() {
                   </label>
                   <input
                     type={loginBy === "phone" ? "tel" : "email"}
-                    placeholder={loginBy === "phone" ? "01XXXXXXXXX" : "আপনার ইমেইল"}
+                    placeholder={
+                      loginBy === "phone" ? "01XXXXXXXXX" : "আপনার ইমেইল"
+                    }
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
                     value={form.identifier}
-                    onChange={(e) => setForm({ ...form, identifier: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, identifier: e.target.value })
+                    }
                     autoComplete={loginBy === "phone" ? "tel" : "email"}
                   />
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <label className="text-sm font-medium text-gray-700">পাসওয়ার্ড</label>
-                    <button type="button" onClick={() => setMode("forgot")} className="text-xs text-green-600 font-medium">
+                    <label className="text-sm font-medium text-gray-700">
+                      পাসওয়ার্ড
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setMode("forgot")}
+                      className="text-xs text-green-600 font-medium cursor-pointer"
+                    >
                       পাসওয়ার্ড ভুলে গেছেন?
                     </button>
                   </div>
@@ -147,10 +169,16 @@ export default function LoginPage() {
                       placeholder="পাসওয়ার্ড"
                       className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-12 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
                       value={form.password}
-                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, password: e.target.value })
+                      }
                       autoComplete="current-password"
                     />
-                    <button type="button" onClick={() => setShow(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setShow(!showPass)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 p-1 cursor-pointer"
+                    >
                       {showPass ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
@@ -158,11 +186,13 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={loginMutation.isPending}
-                  className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-semibold py-3 rounded-xl text-base flex items-center justify-center gap-2"
+                  className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-semibold py-3 rounded-xl text-base flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  {loginMutation.isPending
-                    ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    : <LogIn size={20} />}
+                  {loginMutation.isPending ? (
+                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <LogIn size={20} />
+                  )}
                   {loginMutation.isPending ? "অপেক্ষা করুন..." : "লগইন"}
                 </button>
               </form>
@@ -173,10 +203,19 @@ export default function LoginPage() {
           {mode === "forgot" && (
             <>
               <div className="flex items-center gap-3 mb-5">
-                <button onClick={() => setMode("login")} className="p-1.5 rounded-lg bg-gray-100"><ArrowLeft size={18} /></button>
-                <h2 className="text-lg font-semibold text-gray-800">পাসওয়ার্ড ভুলেছেন</h2>
+                <button
+                  onClick={() => setMode("login")}
+                  className="p-1.5 rounded-lg bg-gray-100 cursor-pointer"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+                <h2 className="text-lg font-semibold text-gray-800">
+                  পাসওয়ার্ড ভুলেছেন
+                </h2>
               </div>
-              <p className="text-sm text-gray-500 mb-4">আপনার মোবাইল নম্বর বা ইমেইল দিন। OTP পাঠানো হবে।</p>
+              <p className="text-sm text-gray-500 mb-4">
+                আপনার মোবাইল নম্বর বা ইমেইল দিন। OTP পাঠানো হবে।
+              </p>
               <form onSubmit={handleForgot} className="space-y-4">
                 <input
                   type="text"
@@ -188,7 +227,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={forgotMutation.isPending}
-                  className="w-full bg-green-600 text-white font-semibold py-3 rounded-xl disabled:bg-green-300"
+                  className="w-full bg-green-600 text-white font-semibold py-3 rounded-xl disabled:bg-green-300 cursor-pointer"
                 >
                   {forgotMutation.isPending ? "পাঠানো হচ্ছে..." : "OTP পাঠান"}
                 </button>
@@ -200,11 +239,19 @@ export default function LoginPage() {
           {mode === "otp" && (
             <>
               <div className="flex items-center gap-3 mb-5">
-                <button onClick={() => setMode("forgot")} className="p-1.5 rounded-lg bg-gray-100"><ArrowLeft size={18} /></button>
-                <h2 className="text-lg font-semibold text-gray-800">OTP যাচাই</h2>
+                <button
+                  onClick={() => setMode("forgot")}
+                  className="p-1.5 rounded-lg bg-gray-100 cursor-pointer"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+                <h2 className="text-lg font-semibold text-gray-800">
+                  OTP যাচাই
+                </h2>
               </div>
               <p className="text-sm text-gray-500 mb-4">
-                {otpVia === "sms" ? "আপনার মোবাইলে" : "আপনার ইমেইলে"} ৬ সংখ্যার OTP পাঠানো হয়েছে।
+                {otpVia === "sms" ? "আপনার মোবাইলে" : "আপনার ইমেইলে"} ৬ সংখ্যার
+                OTP পাঠানো হয়েছে।
               </p>
               <form onSubmit={handleReset} className="space-y-4">
                 <input
@@ -223,18 +270,28 @@ export default function LoginPage() {
                     value={newPass}
                     onChange={(e) => setNewPass(e.target.value)}
                   />
-                  <button type="button" onClick={() => setShow(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <button
+                    type="button"
+                    onClick={() => setShow(!showPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer"
+                  >
                     {showPass ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
                 <button
                   type="submit"
                   disabled={resetMutation.isPending}
-                  className="w-full bg-green-600 text-white font-semibold py-3 rounded-xl disabled:bg-green-300"
+                  className="w-full bg-green-600 text-white font-semibold py-3 rounded-xl disabled:bg-green-300 cursor-pointer"
                 >
-                  {resetMutation.isPending ? "পরিবর্তন হচ্ছে..." : "পাসওয়ার্ড পরিবর্তন করুন"}
+                  {resetMutation.isPending
+                    ? "পরিবর্তন হচ্ছে..."
+                    : "পাসওয়ার্ড পরিবর্তন করুন"}
                 </button>
-                <button type="button" onClick={() => handleForgot({ preventDefault: () => {} })} className="w-full text-sm text-green-600 font-medium py-2">
+                <button
+                  type="button"
+                  onClick={() => handleForgot({ preventDefault: () => {} })}
+                  className="w-full text-sm text-green-600 font-medium py-2 cursor-pointer"
+                >
                   OTP আসেনি? আবার পাঠান
                 </button>
               </form>
@@ -244,7 +301,9 @@ export default function LoginPage() {
 
         <p className="text-center text-sm text-gray-500 mt-6">
           নতুন বাড়ীওয়ালা?{" "}
-          <a href="/subscribe" className="text-green-600 font-medium underline">সাবস্ক্রাইব করুন</a>
+          <a href="/subscribe" className="text-green-600 font-medium underline">
+            সাবস্ক্রাইব করুন
+          </a>
         </p>
       </div>
     </div>
