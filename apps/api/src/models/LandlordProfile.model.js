@@ -11,6 +11,10 @@ const landlordProfileSchema = new mongoose.Schema({
   // Auto bill generation config
   billGenerationDay: { type: Number, default: 1, min: 1, max: 28 }, // day of month
   billDueDays:      { type: Number, default: 10 }, // due N days after generation
+  // SMS Limits Support
+  smsLimit:         { type: Number, default: 50 },
+  smsUsed:          { type: Number, default: 0 },
+  limitBreachNotified: { type: Boolean, default: false },
 }, { timestamps: true })
 
 export default mongoose.model('LandlordProfile', landlordProfileSchema)

@@ -32,11 +32,15 @@ export default function AdminConfigPage() {
       setEdited({});
       qc.invalidateQueries({ queryKey: ["admin", "config"] });
     },
-    onError: (err) => toast.error(err.response?.data?.message || "সমস্যা হয়েছে"),
+    onError: (err) =>
+      toast.error(err.response?.data?.message || "সমস্যা হয়েছে"),
   });
 
   const handleSave = () => {
-    const configs = Object.entries(edited).map(([key, value]) => ({ key, value }));
+    const configs = Object.entries(edited).map(([key, value]) => ({
+      key,
+      value,
+    }));
     if (configs.length === 0) return toast.error("কোনো পরিবর্তন নেই");
     saveMutation.mutate({ configs });
   };
@@ -46,7 +50,8 @@ export default function AdminConfigPage() {
     return acc;
   }, {});
 
-  const getValue = (c) => edited[c.key] !== undefined ? edited[c.key] : c.value;
+  const getValue = (c) =>
+    edited[c.key] !== undefined ? edited[c.key] : c.value;
 
   return (
     <div className="py-4 space-y-4">
@@ -60,17 +65,31 @@ export default function AdminConfigPage() {
           disabled={saveMutation.isPending || Object.keys(edited).length === 0}
           className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium disabled:bg-green-300"
         >
-          {saveMutation.isPending ? <RefreshCw size={15} className="animate-spin" /> : <Save size={15} />}
-          {Object.keys(edited).length > 0 ? `${Object.keys(edited).length}টি সংরক্ষণ` : "সংরক্ষণ"}
+          {saveMutation.isPending ? (
+            <RefreshCw size={15} className="animate-spin" />
+          ) : (
+            <Save size={15} />
+          )}
+          {Object.keys(edited).length > 0
+            ? `${Object.keys(edited).length}টি সংরক্ষণ`
+            : "সংরক্ষণ"}
         </button>
       </div>
 
       <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800">
-        ⚠️ এখানের পরিবর্তন ডাটাবেজে এনক্রিপ্টেড অবস্থায় সংরক্ষণ হয় এবং সার্ভার রিস্টার্ট ছাড়াই কার্যকর হয়।
+        ⚠️ এখানের পরিবর্তন ডাটাবেজে এনক্রিপ্টেড অবস্থায় সংরক্ষণ হয় এবং সার্ভার
+        রিস্টার্ট ছাড়াই কার্যকর হয়।
       </div>
 
       {isLoading ? (
-        <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-20 bg-gray-100 rounded-xl animate-pulse"
+            />
+          ))}
+        </div>
       ) : (
         Object.entries(CATEGORY_LABELS).map(([cat, catLabel]) => {
           const items = grouped[cat] || [];
@@ -82,23 +101,39 @@ export default function AdminConfigPage() {
                 {items.map((c) => (
                   <div key={c.key}>
                     <label className="block text-xs font-medium text-gray-500 mb-1">
-                      {c.label} {c.inDb && <span className="text-green-600 ml-1">✓ DB</span>}
+                      {c.label}{" "}
+                      {c.inDb && (
+                        <span className="text-green-600 ml-1">✓ DB</span>
+                      )}
                     </label>
                     <div className="relative">
                       <input
-                        type={c.isSecret && !reveal[c.key] ? "password" : "text"}
+                        type={
+                          c.isSecret && !reveal[c.key] ? "password" : "text"
+                        }
                         className={`w-full border rounded-lg px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 ${edited[c.key] !== undefined ? "border-green-400 bg-green-50" : "border-gray-200"}`}
                         value={getValue(c)}
-                        onChange={(e) => setEdited(ed => ({ ...ed, [c.key]: e.target.value }))}
+                        onChange={(e) =>
+                          setEdited((ed) => ({
+                            ...ed,
+                            [c.key]: e.target.value,
+                          }))
+                        }
                         placeholder={c.key}
                       />
                       {c.isSecret && (
                         <button
                           type="button"
-                          onClick={() => setReveal(r => ({ ...r, [c.key]: !r[c.key] }))}
+                          onClick={() =>
+                            setReveal((r) => ({ ...r, [c.key]: !r[c.key] }))
+                          }
                           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400"
                         >
-                          {reveal[c.key] ? <EyeOff size={16} /> : <Eye size={16} />}
+                          {reveal[c.key] ? (
+                            <EyeOff size={16} />
+                          ) : (
+                            <Eye size={16} />
+                          )}
                         </button>
                       )}
                     </div>
@@ -112,8 +147,14 @@ export default function AdminConfigPage() {
 
       {Object.keys(edited).length > 0 && (
         <div className="sticky bottom-20 bg-green-600 text-white rounded-xl p-3 flex items-center justify-between shadow-lg">
-          <span className="text-sm font-medium">{Object.keys(edited).length}টি পরিবর্তন অসংরক্ষিত</span>
-          <button onClick={handleSave} disabled={saveMutation.isPending} className="bg-white text-green-700 px-4 py-1.5 rounded-lg text-sm font-bold">
+          <span className="text-sm font-medium">
+            {Object.keys(edited).length}টি পরিবর্তন অসংরক্ষিত
+          </span>
+          <button
+            onClick={handleSave}
+            disabled={saveMutation.isPending}
+            className="bg-white text-green-700 px-4 py-1.5 rounded-lg text-sm font-bold"
+          >
             {saveMutation.isPending ? "..." : "সংরক্ষণ করুন"}
           </button>
         </div>

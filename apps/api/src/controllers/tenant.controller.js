@@ -41,9 +41,15 @@ export function normalizeBDPhone(phone) {
   return cleaned;
 }
 // Send credentials via SMS (primary) and/or email
-async function sendCredentials({ name, phone, email, password }) {
+async function sendCredentials({ landlordId, name, phone, email, password }) {
   if (phone) {
-    await sendCredentialsSMS({ name, phone, password, loginId: phone });
+    await sendCredentialsSMS({
+      landlordId,
+      name,
+      phone,
+      password,
+      loginId: phone,
+    });
   }
   if (email) {
     await sendCredentialsEmail({ name, email, password }).catch((err) =>
@@ -150,6 +156,7 @@ export const create = async (req, res, next) => {
 
         // 🔹 send credentials (SMS বা Email)
         await sendCredentials({
+          landlordId,
           name: req.body.name,
           phone: normalizedPhone,
           email: req.body.email,
@@ -217,6 +224,7 @@ export const update = async (req, res, next) => {
         await tenant.save();
 
         await sendCredentials({
+          landlordId,
           name: tenant.name,
           phone: normalizedPhone || tenant.phone,
           email: email,

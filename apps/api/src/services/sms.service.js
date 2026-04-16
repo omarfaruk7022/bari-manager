@@ -3,6 +3,7 @@
  * Supports: SSL Wireless (popular BD gateway), Twilio, or generic HTTP gateway
  * BD people prefer SMS over email, so this is primary notification channel.
  */
+import LandlordProfile from "../models/LandlordProfile.model.js";
 
 const isSmsConfigured = () => {
   return !!(
@@ -24,7 +25,6 @@ export const sendSMS = async (to, message) => {
     );
     return { success: false, reason: "sms_not_configured" };
   }
-
 
   // Normalize BD phone number
   // let phone = to.replace(/\s+/g, "").replace(/^0/, "880").replace(/^\+/, "");
@@ -49,6 +49,52 @@ export const sendSMS = async (to, message) => {
     }
   } catch (err) {
     console.error("❌ SMS send error:", err.message);
+    return { success: false, reason: err.message };
+  }
+};
+
+/**
+ * Send SMS and track against landlord quota
+ */
+
+export const sendTrackedSMS = async (landlordId, phone, message) => {
+  if (!landlordId) {
+    return sendSMS(phone, message);
+  }
+
+  try {
+    const profile = await LandlordProfile.findOne({ userId: landlordId });
+
+    if (!profile) return sendSMS(phone, message);
+
+    if (profile.smsUsed >= profile.smsLimit) {
+      if (!profile.limitBreachNotified && profile.phone) {
+        const alertMsg = `BariManager: Your SMS limit (${profile.smsLimit}) has been reached. Please contact Admin.`;
+
+        await sendSMS(profile.phone, alertMsg);
+
+        profile.limitBreachNotified = true;
+        await profile.save();
+      }
+
+      return { success: false, reason: "sms_limit_reached" };
+    }
+
+    const result = await sendSMS(phone, message);
+
+    if (result.success) {
+      const before = profile.smsUsed;
+
+      profile.smsUsed = (profile.smsUsed || 0) + 1;
+
+      await profile.save();
+    } else {
+      console.log("❌ SMS failed, not updating usage");
+    }
+
+    return result;
+  } catch (err) {
+    console.error("❌ Tracked SMS send error:", err);
     return { success: false, reason: err.message };
   }
 };
@@ -103,17 +149,19 @@ async function sendViaBdBulkSms(phone, message) {
   const params = new URLSearchParams({
     api_key: process.env.SMS_API_KEY,
     type: "text",
-    number: phone, // 88017XXXXXXXX
+    number: phone,
     senderid: process.env.SMS_SENDER_ID,
     message: message,
   });
 
   const res = await fetch(`${baseUrl}?${params}`);
-  const text = await res.text();
+  const data = await res.json();
 
-  console.log("SMS Response:", text);
+  console.log("SMS Response:", data);
 
-  return { success: res.ok, raw: text };
+  const isSuccess = data.response_code === 202;
+
+  return { success: isSuccess, raw: data };
 }
 // async function sendViaBdBulkSms(phone, message) {
 //   console.log("phone in last func", phone, message);
@@ -171,21 +219,23 @@ async function sendViaCustomGateway(phone, message) {
 const APP_URL = process.env.FRONTEND_URL;
 
 export const sendCredentialsSMS = async ({
+  landlordId,
   name,
   phone,
   password,
   loginId,
 }) => {
   const msg = `BariManager: প্রিয় ${name}, আপনার লগইন তথ্য:\nমোবাইল: ${loginId || phone}\nপাসওয়ার্ড: ${password}\nলগইন: ${APP_URL}\nপ্রথম লগইনে পাসওয়ার্ড পরিবর্তন করুন। `;
-  return sendSMS(phone, msg);
+  return sendTrackedSMS(landlordId, phone, msg);
 };
 
-export const sendRejectionSMS = async ({ name, phone, reason }) => {
+export const sendRejectionSMS = async ({ landlordId, name, phone, reason }) => {
   const msg = `BariManager: প্রিয় ${name}, আপনার আবেদন প্রত্যাখ্যান করা হয়েছে।\nকারণ: ${reason}\nবিস্তারিত জানতে যোগাযোগ করুন: 01601702285`;
-  return sendSMS(phone, msg);
+  return sendTrackedSMS(landlordId, phone, msg);
 };
 
 export const sendBillSMS = async ({
+  landlordId,
   name,
   phone,
   month,
@@ -197,10 +247,11 @@ export const sendBillSMS = async ({
     : "শীঘ্রই";
 
   const msg = `BariManager: ${name}, ${month} মাসের বিল ৳${totalAmount}। শেষ তারিখ: ${due}। বিস্তারিত: ${APP_URL}/tenant/bills`;
-  return sendSMS(phone, msg);
+  return sendTrackedSMS(landlordId, phone, msg);
 };
 
 export const sendPaymentConfirmSMS = async ({
+  landlordId,
   name,
   phone,
   amount,
@@ -208,25 +259,31 @@ export const sendPaymentConfirmSMS = async ({
   trxId,
 }) => {
   const msg = `BariManager: ${name}, ${month} মাসের ৳${amount} পেমেন্ট সফল।${trxId ? ` Trx: ${trxId}` : ""} বিস্তারিত: ${APP_URL}/tenant/payments`;
-  return sendSMS(phone, msg);
+  return sendTrackedSMS(landlordId, phone, msg);
 };
 
-export const sendOtpSMS = async ({ phone, otp }) => {
+export const sendOtpSMS = async ({ landlordId, phone, otp }) => {
   const msg = `BariManager OTP: ${otp}। পাসওয়ার্ড রিসেটের জন্য এই কোড ব্যবহার করুন। (${APP_URL}) ৫ মিনিটে মেয়াদ শেষ।`;
-  return sendSMS(phone, msg);
+  return sendTrackedSMS(landlordId, phone, msg);
 };
 
-export const sendPasswordResetSMS = async ({ name, phone, newPassword }) => {
+export const sendPasswordResetSMS = async ({
+  landlordId,
+  name,
+  phone,
+  newPassword,
+}) => {
   const msg = `BariManager: ${name}, আপনার নতুন পাসওয়ার্ড: ${newPassword}। লগইন: ${APP_URL} লগইনের পর পরিবর্তন করুন।`;
-  return sendSMS(phone, msg);
+  return sendTrackedSMS(landlordId, phone, msg);
 };
 
 export const sendPaymentReminderSMS = async ({
+  landlordId,
   name,
   phone,
   month,
   dueAmount,
 }) => {
   const msg = `BariManager: ${name}, ${month} মাসের ৳${dueAmount} বকেয়া। বিস্তারিত: ${APP_URL}/tenant/bills`;
-  return sendSMS(phone, msg);
+  return sendTrackedSMS(landlordId, phone, msg);
 };

@@ -2,31 +2,37 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Home, Users, Receipt, BarChart3,
-  Bell, Settings, ShieldCheck, CreditCard
+  Home,
+  Users,
+  Receipt,
+  BarChart3,
+  Bell,
+  Settings,
+  ShieldCheck,
+  CreditCard,
 } from "lucide-react";
 
 export const NAV_CONFIG = {
   landlord: [
-    { href: "/landlord/dashboard",  icon: Home,      label: "হোম" },
-    { href: "/landlord/tenants",    icon: Users,      label: "ভাড়াটে" },
-    { href: "/landlord/bills",      icon: Receipt,    label: "বিল" },
-    { href: "/landlord/reports",    icon: BarChart3,  label: "রিপোর্ট" },
-    { href: "/landlord/settings",   icon: Settings,   label: "সেটিংস" },
+    { href: "/landlord/dashboard", icon: Home, label: "হোম" },
+    { href: "/landlord/tenants", icon: Users, label: "ভাড়াটে" },
+    { href: "/landlord/bills", icon: Receipt, label: "বিল" },
+    { href: "/landlord/reports", icon: BarChart3, label: "রিপোর্ট" },
+    { href: "/landlord/settings", icon: Settings, label: "সেটিংস" },
   ],
   tenant: [
-    { href: "/tenant/dashboard",    icon: Home,       label: "হোম" },
-    { href: "/tenant/bills",        icon: Receipt,    label: "বিল" },
-    { href: "/tenant/payments",     icon: CreditCard, label: "পেমেন্ট" },
-    { href: "/tenant/notices",      icon: Bell,       label: "নোটিশ" },
-    { href: "/tenant/settings",     icon: Settings,   label: "সেটিংস" },
+    { href: "/tenant/dashboard", icon: Home, label: "হোম" },
+    { href: "/tenant/bills", icon: Receipt, label: "বিল" },
+    { href: "/tenant/payments", icon: CreditCard, label: "পেমেন্ট" },
+    { href: "/tenant/notices", icon: Bell, label: "নোটিশ" },
+    { href: "/tenant/settings", icon: Settings, label: "সেটিংস" },
   ],
   admin: [
-    { href: "/admin/dashboard",     icon: Home,       label: "হোম" },
-    { href: "/admin/landlords",     icon: Users,      label: "বাড়ীওয়ালা" },
-    { href: "/admin/tenants",       icon: Users,      label: "ভাড়াটে" },
-    { href: "/admin/subscriptions", icon: Receipt,    label: "আবেদন" },
-    { href: "/admin/config",        icon: ShieldCheck,label: "কনফিগ" },
+    { href: "/admin/dashboard", icon: Home, label: "হোম" },
+    { href: "/admin/landlords", icon: Users, label: "বাড়ীওয়ালা" },
+    { href: "/admin/tenants", icon: Users, label: "ভাড়াটে" },
+    { href: "/admin/subscriptions", icon: Receipt, label: "আবেদন" },
+    { href: "/admin/config", icon: ShieldCheck, label: "কনফিগ" },
   ],
 };
 

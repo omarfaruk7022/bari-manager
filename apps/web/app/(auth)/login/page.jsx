@@ -120,13 +120,13 @@ export default function LoginPage() {
               <div className="flex rounded-xl border border-gray-200 overflow-hidden mb-5">
                 <button
                   onClick={() => setLoginBy("phone")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors ${loginBy === "phone" ? "bg-green-600 text-white" : "text-gray-500"}`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors cursor-pointer ${loginBy === "phone" ? "bg-green-600 text-white" : "text-gray-500"}`}
                 >
                   <Phone size={15} /> মোবাইল
                 </button>
                 <button
                   onClick={() => setLoginBy("email")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors ${loginBy === "email" ? "bg-green-600 text-white" : "text-gray-500"}`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors cursor-pointer ${loginBy === "email" ? "bg-green-600 text-white" : "text-gray-500"}`}
                 >
                   <Mail size={15} /> ইমেইল
                 </button>

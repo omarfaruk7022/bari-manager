@@ -24,7 +24,7 @@ export const sendBillReadyNotification = async (tenant, bill) => {
 
   // SMS primary (BD users prefer SMS)
   if (tenant.phone) {
-    await sendBillSMS({ name: tenant.name, phone: tenant.phone, month: bill.month, totalAmount: bill.totalAmount, dueDate: bill.dueDate })
+    await sendBillSMS({ landlordId: tenant.landlordId, name: tenant.name, phone: tenant.phone, month: bill.month, totalAmount: bill.totalAmount, dueDate: bill.dueDate })
   }
   // Email fallback
   if (tenant.email) {
@@ -46,7 +46,7 @@ export const sendPaymentReceivedNotification = async (tenant, amount, bill) => {
   })
 
   if (tenant.phone) {
-    await sendPaymentConfirmSMS({ name: tenant.name, phone: tenant.phone, amount, month: bill.month })
+    await sendPaymentConfirmSMS({ landlordId: tenant.landlordId, name: tenant.name, phone: tenant.phone, amount, month: bill.month })
   }
   if (tenant.email) {
     await sendPaymentConfirmEmail({ name: tenant.name, email: tenant.email, amount, month: bill.month })
@@ -67,6 +67,6 @@ export const sendPaymentDueReminder = async (tenant, bill) => {
   })
 
   if (tenant.phone) {
-    await sendPaymentReminderSMS({ name: tenant.name, phone: tenant.phone, month: bill.month, dueAmount: bill.dueAmount })
+    await sendPaymentReminderSMS({ landlordId: tenant.landlordId, name: tenant.name, phone: tenant.phone, month: bill.month, dueAmount: bill.dueAmount })
   }
 }

@@ -329,3 +329,31 @@ export const deleteTenant = async (req, res, next) => {
     next(err);
   }
 };
+
+export const extendLandlordSms = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { addLimit } = req.body;
+
+    if (!addLimit || isNaN(addLimit) || Number(addLimit) <= 0) {
+      return res.status(400).json({ success: false, message: "সঠিক SMS লিমিট প্রদান করুন" });
+    }
+
+    const profile = await LandlordProfile.findOne({ userId: id });
+    if (!profile) {
+      return res.status(404).json({ success: false, message: "বাড়ীওয়ালার প্রোফাইল পাওয়া যায়নি" });
+    }
+
+    profile.smsLimit += Number(addLimit);
+    profile.limitBreachNotified = false;
+    await profile.save();
+
+    res.json({
+      success: true,
+      message: "SMS লিমিট সফলভাবে বাড়ানো হয়েছে",
+      data: profile
+    });
+  } catch (err) {
+    next(err);
+  }
+};
