@@ -4,6 +4,7 @@ import Tenant from "../models/Tenant.model.js";
 import Bill from "../models/Bill.model.js";
 import Payment from "../models/Payment.model.js";
 import LandlordProfile from "../models/LandlordProfile.model.js";
+import { getPlanCatalog, savePlanCatalog } from "../utils/plans.js";
 
 // Default config schema (what keys exist and their metadata)
 const CONFIG_SCHEMA = [
@@ -87,6 +88,31 @@ const CONFIG_SCHEMA = [
     isSecret: false,
   },
   { key: "API_URL", category: "app", label: "API URL", isSecret: false },
+  // Google Ads
+  {
+    key: "GOOGLE_ADS_ENABLED",
+    category: "ads",
+    label: "Google Ads চালু (true/false)",
+    isSecret: false,
+  },
+  {
+    key: "GOOGLE_ADS_CLIENT_ID",
+    category: "ads",
+    label: "Google Ads Client ID (ca-pub-...)",
+    isSecret: false,
+  },
+  {
+    key: "GOOGLE_ADS_SLOT_ID",
+    category: "ads",
+    label: "Google Ads Slot ID",
+    isSecret: false,
+  },
+  {
+    key: "GOOGLE_ADS_LAYOUT",
+    category: "ads",
+    label: "Google Ads Layout (default/in-article/in-feed)",
+    isSecret: false,
+  },
   // Security
   {
     key: "JWT_SECRET",
@@ -268,6 +294,53 @@ export const updateLandlordBillSettings = async (req, res, next) => {
       message: "বিল সেটিং আপডেট হয়েছে",
       data: profile,
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getPlans = async (req, res, next) => {
+  try {
+    res.json({ success: true, data: await getPlanCatalog() });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updatePlans = async (req, res, next) => {
+  try {
+    const { plans } = req.body;
+    if (!plans || typeof plans !== "object") {
+      return res.status(400).json({ success: false, message: "plans object দিন" });
+    }
+
+    for (const [key, plan] of Object.entries(plans)) {
+      if (!plan || typeof plan !== "object") {
+        return res.status(422).json({ success: false, message: `${key} প্ল্যান সঠিক নয়` });
+      }
+      if (!plan.name || Number(plan.price) < 0 || Number(plan.smsLimit) < 0 || Number(plan.flatLimit) < 1 || Number(plan.reportMonths) < 1) {
+        return res.status(422).json({
+          success: false,
+          message: `${plan.name || key} প্ল্যানে নাম, মূল্য, SMS, ফ্ল্যাট ও রিপোর্ট সীমা সঠিক দিন`,
+        });
+      }
+    }
+
+    const saved = await savePlanCatalog(plans, req.user._id);
+    await Promise.all(
+      Object.entries(saved).map(([planKey, plan]) =>
+        LandlordProfile.updateMany(
+          { plan: planKey },
+          {
+            smsLimit: plan.smsLimit,
+            flatLimit: plan.flatLimit,
+            reportMonths: plan.reportMonths,
+            limitBreachNotified: false,
+          },
+        ),
+      ),
+    );
+    res.json({ success: true, message: "প্ল্যান আপডেট হয়েছে", data: saved });
   } catch (err) {
     next(err);
   }

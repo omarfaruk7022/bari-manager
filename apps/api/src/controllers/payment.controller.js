@@ -4,6 +4,7 @@ import Tenant from '../models/Tenant.model.js'
 import { getBkashToken, createBkashPayment, executeBkashPayment } from '../services/bkash.service.js'
 import { sendPaymentReceivedNotification } from '../services/notification.service.js'
 import { isAdmin, withScopedFilter } from '../utils/access.js'
+import { normalizeBDPhone } from './tenant.controller.js'
 
 // Helper — update bill after payment
 const updateBillAfterPayment = async (billId, paidNow) => {
@@ -24,7 +25,13 @@ export const list = async (req, res, next) => {
   try {
     const filter = withScopedFilter(req, {}, { allowAllForAdmin: true })
     if (req.user.role === 'tenant') {
-      const tenant = await Tenant.findOne({ userId: req.user._id })
+      const tenant = await Tenant.findOne({
+        $or: [
+          { userId: req.user._id },
+          { phone: normalizeBDPhone(req.user.phone), landlordId: req.user.landlordId },
+          { email: req.user.email, landlordId: req.user.landlordId },
+        ].filter((item) => Object.values(item).every(Boolean)),
+      })
       if (tenant) filter.tenantId = tenant._id
     }
     if (req.query.billId) filter.billId = req.query.billId
@@ -77,7 +84,13 @@ export const cashPayment = async (req, res, next) => {
 export const initBkash = async (req, res, next) => {
   try {
     const { billId, amount } = req.body
-    const tenant = await Tenant.findOne({ userId: req.user._id })
+    const tenant = await Tenant.findOne({
+      $or: [
+        { userId: req.user._id },
+        { phone: normalizeBDPhone(req.user.phone), landlordId: req.user.landlordId },
+        { email: req.user.email, landlordId: req.user.landlordId },
+      ].filter((item) => Object.values(item).every(Boolean)),
+    })
     if (!tenant) return res.status(404).json({ success: false, message: 'ভাড়াটে পাওয়া যায়নি' })
 
     const bill = await Bill.findOne({ _id: billId, tenantId: tenant._id })

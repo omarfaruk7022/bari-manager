@@ -3,6 +3,7 @@ import mongoose from 'mongoose'
 const notificationSchema = new mongoose.Schema({
   landlordId:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   userId:        { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  senderRole:    { type: String, enum: ['admin', 'landlord', 'system'], default: 'system' },
   title:         { type: String, required: true },
   body:          { type: String, required: true },
   type:          { type: String, enum: ['bill_ready', 'payment_due', 'payment_received', 'notice', 'system', 'subscription'], default: 'system' },

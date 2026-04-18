@@ -44,7 +44,7 @@ const configSchema = new mongoose.Schema(
     value: { type: String, required: true }, // always stored encrypted
     category: {
       type: String,
-      enum: ["smtp", "sms", "payment", "app", "security", "other"],
+      enum: ["smtp", "sms", "payment", "app", "security", "ads", "other"],
       default: "other",
     },
     label: { type: String },

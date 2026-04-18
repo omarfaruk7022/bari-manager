@@ -2,12 +2,15 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import User from "../models/User.model.js";
 import Notification from "../models/Notification.model.js";
+import LandlordProfile from "../models/LandlordProfile.model.js";
+import SystemConfig from "../models/SystemConfig.model.js";
 import { sendCredentialsEmail } from "../services/email.service.js";
 import {
   sendOtpSMS,
   sendPasswordResetSMS,
   sendCredentialsSMS,
 } from "../services/sms.service.js";
+import { getPlanConfig, hasSmsQuota } from "../utils/plans.js";
 
 const signToken = (user) =>
   jwt.sign(
@@ -95,11 +98,53 @@ export const login = async (req, res, next) => {
 };
 
 export const me = async (req, res) => {
+  let profile = null;
+  if (req.user.role === "landlord") {
+    profile = await LandlordProfile.findOne({ userId: req.user._id }).select(
+      "plan",
+    );
+  } else if (req.user.role === "tenant" && req.user.landlordId) {
+    profile = await LandlordProfile.findOne({
+      userId: req.user.landlordId,
+    }).select("plan");
+  }
+
+  const plan = profile?.plan ? await getPlanConfig(profile.plan) : null;
+  const [adsEnabledRaw, adsClientRaw, adsSlotRaw, adsLayoutRaw] =
+    await Promise.all([
+      SystemConfig.getDecrypted("GOOGLE_ADS_ENABLED"),
+      SystemConfig.getDecrypted("GOOGLE_ADS_CLIENT_ID"),
+      SystemConfig.getDecrypted("GOOGLE_ADS_SLOT_ID"),
+      SystemConfig.getDecrypted("GOOGLE_ADS_LAYOUT"),
+    ]);
+  const adsEnabled =
+    String(adsEnabledRaw ?? process.env.GOOGLE_ADS_ENABLED ?? "")
+      .toLowerCase()
+      .trim() === "true";
+  const adsClient = adsClientRaw ?? process.env.GOOGLE_ADS_CLIENT_ID ?? "";
+  const adsSlot = adsSlotRaw ?? process.env.GOOGLE_ADS_SLOT_ID ?? "";
+  const adsLayout =
+    adsLayoutRaw ?? process.env.GOOGLE_ADS_LAYOUT ?? "default";
+
   const unread = await Notification.countDocuments({
     userId: req.user._id,
     isRead: false,
   });
-  res.json({ success: true, user: req.user, unreadNotifications: unread });
+  res.json({
+    success: true,
+    user: req.user,
+    unreadNotifications: unread,
+    planKey: profile?.plan || null,
+    planFeatures: plan,
+    googleAds: {
+      enabled: adsEnabled,
+      allowedByPlan: Boolean(plan?.googleAds),
+      active: adsEnabled && Boolean(plan?.googleAds) && Boolean(adsClient) && Boolean(adsSlot),
+      clientId: adsClient,
+      slotId: adsSlot,
+      layout: adsLayout,
+    },
+  });
 };
 
 // ─── Change Password ─────────────────────────────────────────────────────────
@@ -140,6 +185,15 @@ export const forgotPassword = async (req, res, next) => {
         message: "এই তথ্যে কোনো অ্যাকাউন্ট পাওয়া যায়নি",
       });
 
+    if (user.role === "tenant" && user.phone && user.landlordId) {
+      const quota = await hasSmsQuota(user.landlordId, 1);
+      if (!quota.allowed)
+        return res.status(403).json({
+          success: false,
+          message: "বাড়ীওয়ালার SMS লিমিট শেষ। অ্যাডমিনের সাথে যোগাযোগ করুন।",
+        });
+    }
+
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
@@ -153,6 +207,7 @@ export const forgotPassword = async (req, res, next) => {
     // Prefer SMS (BD users prefer this)
     if (user.phone) {
       const smsResult = await sendOtpSMS({
+        landlordId: user.role === "tenant" ? user.landlordId : undefined,
         phone: normalizeBDPhone(user.phone),
         otp,
       });
@@ -245,6 +300,7 @@ export const adminResetPassword = async (req, res, next) => {
     // Notify via SMS/email
     if (user.phone) {
       await sendPasswordResetSMS({
+        landlordId: user.role === "tenant" ? user.landlordId : undefined,
         name: user.name,
         phone: normalizeBDPhone(user.phone),
         newPassword,

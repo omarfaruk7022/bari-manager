@@ -1,5 +1,6 @@
 import Property from "../models/Property.model.js";
 import { withScopedFilter, isAdmin } from "../utils/access.js";
+import { ensureFlatLimit } from "../utils/plans.js";
 
 export const list = async (req, res, next) => {
   try {
@@ -22,6 +23,11 @@ export const create = async (req, res, next) => {
       return res
         .status(400)
         .json({ success: false, message: "বাড়ীওয়ালা নির্বাচন করুন" });
+
+    const limit = await ensureFlatLimit(landlordId);
+    if (!limit.allowed)
+      return res.status(403).json({ success: false, message: limit.message });
+
     const property = await Property.create({ ...req.body, landlordId });
     res
       .status(201)

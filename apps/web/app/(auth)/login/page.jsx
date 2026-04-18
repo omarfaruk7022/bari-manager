@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { Eye, EyeOff, LogIn, Phone, Mail, ArrowLeft } from "lucide-react";
 import api from "@/lib/api";
 import { storeAuth } from "@/lib/auth";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -301,9 +302,9 @@ export default function LoginPage() {
 
         <p className="text-center text-sm text-gray-500 mt-6">
           নতুন বাড়ীওয়ালা?{" "}
-          <a href="/subscribe" className="text-green-600 font-medium underline">
+          <Link href="/subscribe" className="text-green-600 font-medium underline">
             সাবস্ক্রাইব করুন
-          </a>
+          </Link>
         </p>
       </div>
     </div>

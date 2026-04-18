@@ -8,6 +8,7 @@ import * as N  from '../controllers/notification.controller.js'
 import * as PM from '../controllers/payment.controller.js'
 import { validate, tenantCreateSchema, billCreateSchema, propertyCreateSchema, expenseCreateSchema, cashPaymentSchema } from '../middlewares/validate.js'
 import LandlordProfile from '../models/LandlordProfile.model.js'
+import { getPlanConfig } from '../utils/plans.js'
 
 const router = Router()
 
@@ -62,6 +63,12 @@ router.get('/profile', async (req, res, next) => {
 router.put('/bill-settings', async (req, res, next) => {
   try {
     const { billGenerationDay, billDueDays } = req.body
+    const current = await LandlordProfile.findOne({ userId: req.user._id })
+    if (!current) return res.status(404).json({ success: false, message: 'প্রোফাইল পাওয়া যায়নি' })
+    const plan = await getPlanConfig(current.plan)
+    if (!plan.autoBill) {
+      return res.status(403).json({ success: false, message: 'Basic প্ল্যানে স্বয়ংক্রিয় বিল সেটিং নেই' })
+    }
     const profile = await LandlordProfile.findOneAndUpdate(
       { userId: req.user._id },
       { billGenerationDay, billDueDays },

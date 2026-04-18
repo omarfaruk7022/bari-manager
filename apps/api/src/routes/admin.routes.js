@@ -4,7 +4,7 @@ import {
   approve,
   reject,
 } from "../controllers/subscription.controller.js";
-import { adminStats } from "../controllers/notification.controller.js";
+import { adminStats, sendLandlordNotice } from "../controllers/notification.controller.js";
 import {
   listLandlords,
   updateLandlord,
@@ -12,6 +12,8 @@ import {
   deleteLandlord,
   extendLandlordSms,
   listTenants,
+  getTenant,
+  generateTenantBill,
   updateTenant,
   toggleTenant,
   deleteTenant,
@@ -24,6 +26,8 @@ import {
   systemStats,
   resetUserPassword,
   updateLandlordBillSettings,
+  getPlans,
+  updatePlans,
 } from "../controllers/superadmin.controller.js";
 
 const router = Router();
@@ -35,6 +39,7 @@ router.put("/subscriptions/:id/reject", reject);
 
 // Dashboard stats
 router.get("/stats", adminStats);
+router.post("/notices/landlords", sendLandlordNotice);
 
 // All landlords
 router.get("/landlords", listLandlords);
@@ -45,6 +50,8 @@ router.post("/landlords/:id/extend-sms", extendLandlordSms);
 
 // All tenants
 router.get("/tenants", listTenants);
+router.post("/tenants/:id/generate-bill", generateTenantBill);
+router.get("/tenants/:id", getTenant);
 router.put("/tenants/:id", updateTenant);
 router.put("/tenants/:id/toggle", toggleTenant);
 router.delete("/tenants/:id", deleteTenant);
@@ -57,6 +64,8 @@ router.delete("/config/:key", deleteConfig);
 
 // Super admin extras
 router.get("/system-stats", systemStats);
+router.get("/plans", getPlans);
+router.put("/plans", updatePlans);
 router.post("/reset-password", resetUserPassword);
 router.put("/landlord-bill-settings", updateLandlordBillSettings);
 

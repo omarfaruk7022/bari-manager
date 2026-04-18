@@ -57,3 +57,45 @@ export const SUBSCRIPTION_STATUS = {
   APPROVED: 'approved',
   REJECTED: 'rejected',
 }
+
+export const SUBSCRIPTION_PLANS = {
+  BASIC:      'basic',
+  STANDARD:   'standard',
+  PREMIUM:    'premium',
+  ENTERPRISE: 'enterprise',
+}
+
+export const PLAN_CONFIG = {
+  basic: {
+    name: 'Basic',
+    price: 499,
+    smsLimit: 20,
+    flatLimit: 5,
+    reportMonths: 1,
+    autoBill: false,
+  },
+  standard: {
+    name: 'Standard',
+    price: 999,
+    smsLimit: 100,
+    flatLimit: 20,
+    reportMonths: 6,
+    autoBill: true,
+  },
+  premium: {
+    name: 'Premium',
+    price: 1999,
+    smsLimit: 300,
+    flatLimit: 75,
+    reportMonths: 12,
+    autoBill: true,
+  },
+  enterprise: {
+    name: 'Enterprise',
+    price: 4999,
+    smsLimit: 1000,
+    flatLimit: 300,
+    reportMonths: 36,
+    autoBill: true,
+  },
+}

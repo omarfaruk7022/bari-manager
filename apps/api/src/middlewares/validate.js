@@ -36,6 +36,9 @@ export const subscriptionApplySchema = Joi.object({
   propertyName: Joi.string().allow(""),
   propertyAddress: Joi.string().allow(""),
   totalUnits: Joi.number().min(1).default(1),
+  requestedPlan: Joi.string()
+    .valid("basic", "standard", "premium", "enterprise")
+    .default("basic"),
 });
 
 export const tenantCreateSchema = Joi.object({

@@ -1,10 +1,47 @@
 "use client";
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { CheckCircle, ArrowLeft } from "lucide-react";
 import api from "@/lib/api";
+import { request } from "@/lib/query";
+
+const FALLBACK_PLANS = [
+  {
+    value: "basic",
+    name: "Basic",
+    price: 499,
+    desc: "৫ ফ্ল্যাট, ২০ SMS, ১ মাস রিপোর্ট",
+  },
+  {
+    value: "standard",
+    name: "Standard",
+    price: 999,
+    desc: "২০ ফ্ল্যাট, ১০০ SMS, ৬ মাস রিপোর্ট, অটো বিল",
+  },
+  {
+    value: "premium",
+    name: "Premium",
+    price: 1999,
+    desc: "৭৫ ফ্ল্যাট, ৩০০ SMS, ১২ মাস রিপোর্ট, অটো বিল",
+  },
+  {
+    value: "enterprise",
+    name: "Enterprise",
+    price: 4999,
+    desc: "৩০০ ফ্ল্যাট, ১০০০ SMS, ৩৬ মাস রিপোর্ট, অটো বিল",
+  },
+];
+
+const planList = (plans) =>
+  Object.entries(plans || {}).map(([value, plan]) => ({
+    value,
+    ...plan,
+    desc: Array.isArray(plan.features)
+      ? plan.features.join(", ")
+      : `${plan.flatLimit} ফ্ল্যাট, ${plan.smsLimit} SMS, ${plan.reportMonths} মাস রিপোর্ট${plan.autoBill ? ", অটো বিল" : ""}${plan.googleAds ? ", Google Ads" : ""}`,
+  }));
 
 export default function SubscribePage() {
   const router = useRouter();
@@ -15,8 +52,15 @@ export default function SubscribePage() {
     propertyName: "",
     propertyAddress: "",
     totalUnits: 1,
+    requestedPlan: "basic",
   });
   const [success, setSuccess] = useState(false);
+  const { data: planCatalog } = useQuery({
+    queryKey: ["public", "plans"],
+    queryFn: () => request({ url: "/public/plans" }),
+  });
+  const plans = planList(planCatalog).length ? planList(planCatalog) : FALLBACK_PLANS;
+
   const subscribeMutation = useMutation({
     mutationFn: async (payload) => api.post("/public/subscribe", payload),
     onSuccess: () => setSuccess(true),
@@ -131,6 +175,39 @@ export default function SubscribePage() {
                   setForm({ ...form, totalUnits: e.target.value })
                 }
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                প্ল্যান নির্বাচন করুন
+              </label>
+              <div className="space-y-2">
+                {plans.map((plan) => (
+                  <label
+                    key={plan.value}
+                    className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 has-[:checked]:border-green-600 has-[:checked]:bg-green-50"
+                  >
+                    <input
+                      type="radio"
+                      name="requestedPlan"
+                      value={plan.value}
+                      checked={form.requestedPlan === plan.value}
+                      onChange={(e) =>
+                        setForm({ ...form, requestedPlan: e.target.value })
+                      }
+                      className="mt-1 accent-green-600"
+                    />
+                    <span>
+                      <span className="block text-sm font-bold text-gray-900">
+                        {plan.name} · ৳{plan.price.toLocaleString("bn-BD")}/মাস
+                      </span>
+                      <span className="block text-xs leading-5 text-gray-500">
+                        {plan.desc}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             <button

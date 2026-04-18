@@ -13,6 +13,7 @@ export const getScopedLandlordId = (req, options = {}) => {
     if (requested) return requested
     if (options.allowAllForAdmin) return null
   }
+  if (req.user?.role === 'tenant') return req.user?.landlordId || null
   return req.user?._id || null
 }
 

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Eye, EyeOff, Lock, Save } from "lucide-react";
@@ -17,6 +17,13 @@ export default function LandlordSettingsPage() {
 
   const [billDay, setBillDay] = useState(profile?.billGenerationDay || 1);
   const [dueDays, setDueDays] = useState(profile?.billDueDays || 10);
+  const autoBillAllowed = profile?.plan !== "basic";
+
+  useEffect(() => {
+    if (!profile) return;
+    setBillDay(profile.billGenerationDay || 1);
+    setDueDays(profile.billDueDays || 10);
+  }, [profile]);
 
   const passwordMutation = useMutation({
     mutationFn: (payload) => api.put("/auth/change-password", payload),
@@ -89,13 +96,19 @@ export default function LandlordSettingsPage() {
       {/* Auto Bill Settings */}
       <div className="bg-white rounded-2xl p-4 shadow-sm">
         <h2 className="font-semibold text-gray-900 mb-4">স্বয়ংক্রিয় বিল সেটিং</h2>
+        {!autoBillAllowed && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-800">
+            Basic প্ল্যানে এই সেটিং ব্যবহার করা যাবে না। Standard, Premium বা Enterprise প্ল্যানে আপগ্রেড করুন।
+          </div>
+        )}
         <div className="space-y-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               বিল তৈরির তারিখ (প্রতি মাসের)
             </label>
             <select
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              disabled={!autoBillAllowed}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-400"
               value={billDay}
               onChange={(e) => setBillDay(Number(e.target.value))}
             >
@@ -111,14 +124,15 @@ export default function LandlordSettingsPage() {
             <input
               type="number"
               min={1} max={30}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+              disabled={!autoBillAllowed}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-400"
               value={dueDays}
               onChange={(e) => setDueDays(Number(e.target.value))}
             />
           </div>
           <button
             onClick={() => billSettingsMutation.mutate({ billGenerationDay: billDay, billDueDays: dueDays })}
-            disabled={billSettingsMutation.isPending}
+            disabled={billSettingsMutation.isPending || !autoBillAllowed}
             className="flex items-center gap-2 bg-green-600 text-white px-5 py-3 rounded-xl font-medium disabled:bg-green-300"
           >
             <Save size={16} />

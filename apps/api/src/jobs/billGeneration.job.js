@@ -3,6 +3,7 @@ import Tenant from '../models/Tenant.model.js'
 import Bill from '../models/Bill.model.js'
 import LandlordProfile from '../models/LandlordProfile.model.js'
 import { sendBillReadyNotification } from '../services/notification.service.js'
+import { getPlanConfig } from '../utils/plans.js'
 
 // Runs at 00:05 every day — checks if today is a landlord's bill generation day
 cron.schedule('5 0 * * *', async () => {
@@ -21,6 +22,9 @@ cron.schedule('5 0 * * *', async () => {
     let totalCreated = 0, totalSkipped = 0
 
     for (const profile of profiles) {
+      const plan = await getPlanConfig(profile.plan)
+      if (!plan.autoBill) continue
+
       const landlordId = profile.userId
       const dueDateDay = dayOfMonth + (profile.billDueDays || 10)
       const dueDate = new Date(year, today.getMonth(), Math.min(dueDateDay, 28))

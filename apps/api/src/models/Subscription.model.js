@@ -8,6 +8,12 @@ const subscriptionSchema = new mongoose.Schema(
     propertyName: { type: String, trim: true },
     propertyAddress: { type: String, trim: true },
     totalUnits: { type: Number, default: 1 },
+    requestedPlan: {
+      type: String,
+      enum: ["basic", "standard", "premium", "enterprise"],
+      default: "basic",
+    },
+    requestedPlanPrice: { type: Number, default: 499 },
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],

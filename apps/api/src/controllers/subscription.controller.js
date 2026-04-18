@@ -10,6 +10,15 @@ import {
   sendCredentialsSMS,
   sendRejectionSMS,
 } from "../services/sms.service.js";
+import { DEFAULT_PLAN, getPlanCatalog, getPlanConfig } from "../utils/plans.js";
+
+export const plans = async (req, res, next) => {
+  try {
+    res.json({ success: true, data: await getPlanCatalog() });
+  } catch (err) {
+    next(err);
+  }
+};
 
 export function normalizeBDPhone(phone) {
   if (!phone) return phone;
@@ -60,10 +69,13 @@ export const apply = async (req, res, next) => {
         message: "এই তথ্য দিয়ে ইতোমধ্যে আবেদন করা হয়েছে",
       });
 
+    const selectedPlan = await getPlanConfig(req.body.requestedPlan);
     const sub = await Subscription.create({
       ...req.body,
       email: email || undefined, // clean
       phone: normalizedPhone,
+      requestedPlan: req.body.requestedPlan || DEFAULT_PLAN,
+      requestedPlanPrice: selectedPlan.price,
     });
 
     res.status(201).json({
@@ -142,6 +154,7 @@ export const approve = async (req, res, next) => {
 
     const user = await User.create(userPayload);
 
+    const selectedPlan = await getPlanConfig(sub.requestedPlan);
     await LandlordProfile.create({
       userId: user._id,
       propertyName: sub.propertyName || sub.applicantName + "-এর বাড়ি",
@@ -149,6 +162,10 @@ export const approve = async (req, res, next) => {
       phone: normalizeBDPhone(sub.phone),
       totalUnits: sub.totalUnits || 0,
       subscriptionId: sub._id,
+      plan: sub.requestedPlan || DEFAULT_PLAN,
+      smsLimit: selectedPlan.smsLimit,
+      flatLimit: selectedPlan.flatLimit,
+      reportMonths: selectedPlan.reportMonths,
     });
 
     sub.status = "approved";

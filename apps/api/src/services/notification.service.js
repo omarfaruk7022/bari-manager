@@ -2,9 +2,18 @@ import Notification from '../models/Notification.model.js'
 import { sendBillEmail, sendPaymentConfirmEmail } from './email.service.js'
 import { sendBillSMS, sendPaymentConfirmSMS, sendPaymentReminderSMS } from './sms.service.js'
 
-export const createNotification = async ({ userId, landlordId, title, body, type, channel = 'in_app', relatedBillId }) => {
+export const createNotification = async ({
+  userId,
+  landlordId,
+  senderRole = landlordId ? 'landlord' : 'system',
+  title,
+  body,
+  type,
+  channel = 'in_app',
+  relatedBillId,
+}) => {
   try {
-    await Notification.create({ userId, landlordId, title, body, type, channel, relatedBillId })
+    await Notification.create({ userId, landlordId, senderRole, title, body, type, channel, relatedBillId })
   } catch (err) {
     console.error('Notification create error:', err.message)
   }

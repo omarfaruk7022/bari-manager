@@ -6,6 +6,20 @@ import { Edit3, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
 import api from "@/lib/api";
 import { request } from "@/lib/query";
 
+const PLAN_OPTIONS = [
+  { value: "basic", label: "Basic", price: 499 },
+  { value: "standard", label: "Standard", price: 999 },
+  { value: "premium", label: "Premium", price: 1999 },
+  { value: "enterprise", label: "Enterprise", price: 4999 },
+];
+
+const toPlanOptions = (plans) =>
+  Object.entries(plans || {}).map(([value, plan]) => ({
+    value,
+    label: plan.name,
+    price: plan.price,
+  }));
+
 export default function AdminLandlordsPage() {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(null);
@@ -15,6 +29,13 @@ export default function AdminLandlordsPage() {
     queryKey: ["admin", "landlords"],
     queryFn: () => request({ url: "/admin/landlords" }),
   });
+  const { data: planCatalog } = useQuery({
+    queryKey: ["admin", "plans"],
+    queryFn: () => request({ url: "/admin/plans" }),
+  });
+  const planOptions = toPlanOptions(planCatalog).length
+    ? toPlanOptions(planCatalog)
+    : PLAN_OPTIONS;
   const refresh = () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: ["admin", "landlords"] }),
@@ -105,6 +126,9 @@ export default function AdminLandlordsPage() {
                   <p className="text-xs text-blue-600 mt-1 font-medium">
                     SMS লিমিট: {l.profile?.smsUsed || 0}/{l.profile?.smsLimit || 0}
                   </p>
+                  <p className="text-xs text-emerald-700 mt-1 font-medium">
+                    প্ল্যান: {planOptions.find((p) => p.value === l.profile?.plan)?.label || "Basic"} · ৳{(planOptions.find((p) => p.value === l.profile?.plan)?.price || 499).toLocaleString("bn-BD")}/মাস · ফ্ল্যাট {l.unitCount || 0}/{l.profile?.flatLimit || 5} · রিপোর্ট {l.profile?.reportMonths || 1} মাস
+                  </p>
                   <p className="text-xs text-gray-400 mt-1">
                     যোগদান: {new Date(l.createdAt).toLocaleDateString("bn-BD")}
                   </p>
@@ -143,6 +167,7 @@ export default function AdminLandlordsPage() {
                         propertyName: formData.get("propertyName"),
                         propertyAddress: formData.get("propertyAddress"),
                         totalUnits: Number(formData.get("totalUnits") || 0),
+                        plan: formData.get("plan"),
                       },
                     });
                   }}
@@ -173,6 +198,17 @@ export default function AdminLandlordsPage() {
                     defaultValue={l.profile?.propertyAddress}
                     className="rounded-lg border border-gray-200 px-3 py-2 md:col-span-2"
                   />
+                  <select
+                    name="plan"
+                    defaultValue={l.profile?.plan || "basic"}
+                    className="rounded-lg border border-gray-200 px-3 py-2"
+                  >
+                    {planOptions.map((plan) => (
+                      <option key={plan.value} value={plan.value}>
+                        {plan.label} · ৳{plan.price.toLocaleString("bn-BD")}/মাস
+                      </option>
+                    ))}
+                  </select>
                   <input
                     name="totalUnits"
                     type="number"

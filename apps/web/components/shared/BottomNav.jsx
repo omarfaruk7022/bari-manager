@@ -10,6 +10,8 @@ import {
   Settings,
   ShieldCheck,
   CreditCard,
+  Megaphone,
+  Tags,
 } from "lucide-react";
 
 export const NAV_CONFIG = {
@@ -31,6 +33,8 @@ export const NAV_CONFIG = {
     { href: "/admin/dashboard", icon: Home, label: "হোম" },
     { href: "/admin/landlords", icon: Users, label: "বাড়ীওয়ালা" },
     { href: "/admin/tenants", icon: Users, label: "ভাড়াটে" },
+    { href: "/admin/plans", icon: Tags, label: "প্ল্যান" },
+    { href: "/admin/notifications", icon: Megaphone, label: "নোটিশ" },
     { href: "/admin/subscriptions", icon: Receipt, label: "আবেদন" },
     { href: "/admin/config", icon: ShieldCheck, label: "কনফিগ" },
   ],

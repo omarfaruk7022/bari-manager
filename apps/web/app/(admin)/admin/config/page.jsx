@@ -11,6 +11,7 @@ const CATEGORY_LABELS = {
   sms: "📱 SMS সেটিং",
   payment: "💳 পেমেন্ট (bKash)",
   app: "🌐 অ্যাপ URL",
+  ads: "📣 Google Ads",
   security: "🔒 নিরাপত্তা",
   other: "⚙️ অন্যান্য",
 };

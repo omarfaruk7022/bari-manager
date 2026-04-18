@@ -6,6 +6,8 @@ import Expense from "../models/Expense.model.js";
 import Payment from "../models/Payment.model.js";
 import Notification from "../models/Notification.model.js";
 import LandlordProfile from "../models/LandlordProfile.model.js";
+import { getPlanConfig } from "../utils/plans.js";
+import { sendBillReadyNotification } from "../services/notification.service.js";
 
 export const listLandlords = async (req, res, next) => {
   try {
@@ -18,6 +20,10 @@ export const listLandlords = async (req, res, next) => {
       { $match: { landlordId: { $in: landlordIds }, isActive: true } },
       { $group: { _id: "$landlordId", total: { $sum: 1 } } },
     ]);
+    const propertyCounts = await Property.aggregate([
+      { $match: { landlordId: { $in: landlordIds } } },
+      { $group: { _id: "$landlordId", total: { $sum: 1 } } },
+    ]);
 
     const profileMap = new Map(
       (await LandlordProfile.find({ userId: { $in: landlordIds } }).lean()).map(
@@ -27,10 +33,14 @@ export const listLandlords = async (req, res, next) => {
     const tenantCountMap = new Map(
       tenantCounts.map((item) => [String(item._id), item.total]),
     );
+    const propertyCountMap = new Map(
+      propertyCounts.map((item) => [String(item._id), item.total]),
+    );
 
     const data = landlords.map((landlord) => ({
       ...landlord,
       activeTenants: tenantCountMap.get(String(landlord._id)) || 0,
+      unitCount: propertyCountMap.get(String(landlord._id)) || 0,
       profile: profileMap.get(String(landlord._id)) || null,
     }));
 
@@ -42,6 +52,26 @@ export const listLandlords = async (req, res, next) => {
 
 export const updateLandlord = async (req, res, next) => {
   try {
+    const plan = req.body.plan ? await getPlanConfig(req.body.plan) : null;
+    const profileUpdate = {
+      propertyName: req.body.propertyName,
+      propertyAddress: req.body.propertyAddress,
+      phone: req.body.phone,
+      totalUnits: req.body.totalUnits,
+    };
+
+    if (req.body.plan) {
+      profileUpdate.plan = req.body.plan;
+      profileUpdate.smsLimit = req.body.smsLimit ?? plan.smsLimit;
+      profileUpdate.flatLimit = req.body.flatLimit ?? plan.flatLimit;
+      profileUpdate.reportMonths = req.body.reportMonths ?? plan.reportMonths;
+      profileUpdate.limitBreachNotified = false;
+    } else {
+      if (req.body.smsLimit !== undefined) profileUpdate.smsLimit = req.body.smsLimit;
+      if (req.body.flatLimit !== undefined) profileUpdate.flatLimit = req.body.flatLimit;
+      if (req.body.reportMonths !== undefined) profileUpdate.reportMonths = req.body.reportMonths;
+    }
+
     const landlord = await User.findOneAndUpdate(
       { _id: req.params.id, role: "landlord" },
       {
@@ -62,12 +92,7 @@ export const updateLandlord = async (req, res, next) => {
     await LandlordProfile.findOneAndUpdate(
       { userId: landlord._id },
       {
-        $set: {
-          propertyName: req.body.propertyName,
-          propertyAddress: req.body.propertyAddress,
-          phone: req.body.phone,
-          totalUnits: req.body.totalUnits,
-        },
+        $set: profileUpdate,
       },
       { new: true },
     );
@@ -176,6 +201,120 @@ export const listTenants = async (req, res, next) => {
       .sort({ createdAt: -1 });
 
     res.json({ success: true, data: tenants });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getTenant = async (req, res, next) => {
+  try {
+    const selectedMonth = req.query.month || new Date().toISOString().slice(0, 7);
+    const tenant = await Tenant.findById(req.params.id)
+      .populate("propertyId", "unitNumber floor type monthlyRent")
+      .populate("userId", "name email phone isActive lastLoginAt createdAt")
+      .populate("landlordId", "name email phone")
+      .lean();
+
+    if (!tenant)
+      return res
+        .status(404)
+        .json({ success: false, message: "ভাড়াটে পাওয়া যায়নি" });
+
+    const [billStats, payments] = await Promise.all([
+      Bill.aggregate([
+        { $match: { tenantId: tenant._id } },
+        {
+          $group: {
+            _id: null,
+            totalBilled: { $sum: "$totalAmount" },
+            totalPaid: { $sum: "$paidAmount" },
+            totalDue: { $sum: "$dueAmount" },
+            bills: { $sum: 1 },
+          },
+        },
+      ]),
+      Payment.find({ tenantId: tenant._id }).sort({ createdAt: -1 }).limit(5).lean(),
+    ]);
+    const selectedMonthBill = await Bill.findOne({
+      tenantId: tenant._id,
+      month: selectedMonth,
+    })
+      .select("_id month totalAmount paidAmount dueAmount status dueDate")
+      .lean();
+
+    res.json({
+      success: true,
+      data: {
+        ...tenant,
+        selectedMonth,
+        selectedMonthBill,
+        billSummary: billStats[0] || { totalBilled: 0, totalPaid: 0, totalDue: 0, bills: 0 },
+        recentPayments: payments,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const generateTenantBill = async (req, res, next) => {
+  try {
+    const { month = new Date().toISOString().slice(0, 7), year } = req.body;
+    if (!/^\d{4}-\d{2}$/.test(month)) {
+      return res.status(400).json({ success: false, message: "সঠিক মাস দিন (যেমন: 2026-04)" });
+    }
+
+    const tenant = await Tenant.findById(req.params.id)
+      .populate("propertyId")
+      .populate("userId");
+    if (!tenant)
+      return res
+        .status(404)
+        .json({ success: false, message: "ভাড়াটে পাওয়া যায়নি" });
+
+    const existing = await Bill.findOne({ tenantId: tenant._id, month });
+    if (existing)
+      return res.status(409).json({
+        success: false,
+        message: `${month} মাসের বিল ইতোমধ্যে তৈরি আছে`,
+        data: existing,
+      });
+
+    const profile = await LandlordProfile.findOne({ userId: tenant.landlordId });
+    const dueDays = profile?.billDueDays || 10;
+    const [yr, mo] = month.split("-").map(Number);
+    const dueDate = new Date(yr, mo - 1, Math.min(1 + dueDays, 28));
+
+    const rentAmount = tenant.monthlyRent || tenant.propertyId?.monthlyRent || 0;
+    const items = [{ type: "rent", amount: rentAmount }];
+    const ud = tenant.utilityDefaults || {};
+    if (ud.gasAmount > 0) items.push({ type: "gas", label: "গ্যাস বিল", amount: ud.gasAmount });
+    if (ud.waterAmount > 0) items.push({ type: "water", label: "পানির বিল", amount: ud.waterAmount });
+    if (ud.serviceCharge > 0) items.push({ type: "maintenance", label: "সার্ভিস চার্জ", amount: ud.serviceCharge });
+    if (ud.garbageAmount > 0) items.push({ type: "garbage", label: "ময়লার বিল", amount: ud.garbageAmount });
+    if (ud.electricityAmount > 0) items.push({ type: "electricity", label: "বিদ্যুৎ বিল", amount: ud.electricityAmount });
+
+    const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
+    const bill = await Bill.create({
+      landlordId: tenant.landlordId,
+      tenantId: tenant._id,
+      propertyId: tenant.propertyId._id,
+      month,
+      year: Number(year || yr),
+      items,
+      totalAmount,
+      dueAmount: totalAmount,
+      dueDate,
+      isAutoGenerated: false,
+    });
+
+    if (tenant.userId) await sendBillReadyNotification(tenant, bill);
+
+    res.status(201).json({
+      success: true,
+      message: `${month} মাসের বিল তৈরি হয়েছে`,
+      data: bill,
+    });
   } catch (err) {
     next(err);
   }

@@ -24,6 +24,24 @@ const STATUS_CONFIG = {
   },
 };
 
+const PLAN_LABELS = {
+  basic: "Basic",
+  standard: "Standard",
+  premium: "Premium",
+  enterprise: "Enterprise",
+};
+
+const PLAN_PRICES = {
+  basic: 499,
+  standard: 999,
+  premium: 1999,
+  enterprise: 4999,
+};
+
+const planName = (plans, key) => plans?.[key]?.name || PLAN_LABELS[key || "basic"] || "Basic";
+const planPrice = (plans, key, snapshot) =>
+  snapshot ?? plans?.[key]?.price ?? PLAN_PRICES[key || "basic"] ?? 0;
+
 export default function AdminSubscriptionsPage() {
   const [filter, setFilter] = useState("pending");
   const [acting, setActing] = useState(null);
@@ -31,6 +49,10 @@ export default function AdminSubscriptionsPage() {
   const { data: subs = [], isLoading: loading } = useQuery({
     queryKey: ["admin", "subscriptions", filter],
     queryFn: () => request({ url: `/admin/subscriptions?status=${filter}` }),
+  });
+  const { data: plans } = useQuery({
+    queryKey: ["admin", "plans"],
+    queryFn: () => request({ url: "/admin/plans" }),
   });
   const refresh = () =>
     Promise.all([
@@ -148,6 +170,15 @@ export default function AdminSubscriptionsPage() {
                         <strong>ফ্ল্যাট সংখ্যা:</strong> {s.totalUnits}
                       </p>
                     )}
+                    <p>
+                      <strong>প্ল্যান:</strong>{" "}
+                      {planName(plans, s.requestedPlan || "basic")}
+                    </p>
+                    <p>
+                      <strong>মূল্য:</strong> ৳
+                      {planPrice(plans, s.requestedPlan || "basic", s.requestedPlanPrice).toLocaleString("bn-BD")}
+                      /মাস
+                    </p>
                   </div>
                 )}
 
