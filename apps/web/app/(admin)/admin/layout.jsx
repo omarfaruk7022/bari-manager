@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, LogOut, ShieldCheck } from "lucide-react";
 import { AuthGuard } from "@/components/shared/AuthGuard";
-import { NAV_CONFIG } from "@/components/shared/BottomNav";
+import { BottomNav, NAV_CONFIG } from "@/components/shared/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function AdminLayout({ children }) {
@@ -89,9 +89,13 @@ export default function AdminLayout({ children }) {
               </div>
             </header>
 
-            <main className="px-4 pb-24 pt-5 lg:px-8 lg:pb-10">
+            <main className="px-4 pb-28 pt-5 lg:px-8 lg:pb-10">
               <div className="mx-auto max-w-full">{children}</div>
             </main>
+          </div>
+
+          <div className="lg:hidden">
+            <BottomNav role="admin" />
           </div>
         </div>
       </AuthGuard>
