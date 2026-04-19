@@ -29,9 +29,9 @@ app.use(
 
 app.use(
   rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 200,
-    message: "অনেক বেশি রিকোয়েস্ট। পরে চেষ্টা করুন।",
+    windowMs: 60 * 1000, // 1 minute
+    max: 100, // max 100 requests per minute
+    message: "অনেক বেশি রিকোয়েস্ট। ১ মিনিট পরে আবার চেষ্টা করুন।",
   }),
 );
 app.use(express.json());
