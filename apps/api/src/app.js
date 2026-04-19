@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import { connectDB } from "./config/db.js";
 import { mountRoutes } from "./routes/index.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 
@@ -36,6 +37,15 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.get("/health", (_, res) => res.json({ status: "ok", time: new Date() }));
+
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 mountRoutes(app);
 app.use(errorHandler);

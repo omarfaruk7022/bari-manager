@@ -25,11 +25,19 @@ async function loadDbConfigs() {
   }
 }
 
-connectDB().then(async () => {
-  await loadDbConfigs();
-  startBillGenerationJob();
-  await runBillGenerationJob();
-  server.listen(process.env.API_PORT || 5000, () =>
-    console.log(`✅ BariManager API running on port ${process.env.API_PORT || 5000}`),
-  );
-});
+async function bootstrap() {
+  try {
+    await connectDB();
+    await loadDbConfigs();
+    startBillGenerationJob();
+    await runBillGenerationJob();
+    server.listen(process.env.API_PORT || 5000, () =>
+      console.log(`✅ BariManager API running on port ${process.env.API_PORT || 5000}`),
+    );
+  } catch (err) {
+    console.error("❌ Failed to start server:", err.message);
+    process.exit(1);
+  }
+}
+
+bootstrap();
