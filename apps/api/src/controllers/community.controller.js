@@ -13,6 +13,16 @@ import {
   serializeMessage,
 } from "../services/communityChat.service.js";
 
+const emitToRoomIfAvailable = (room, event, payload) => {
+  const io = getIO();
+  if (!io) {
+    console.warn(`⚠️ Socket.IO is not initialized; skipped ${event} for room ${room}`);
+    return;
+  }
+
+  io.to(room).emit(event, payload);
+};
+
 export const listCommunityGroups = async (req, res, next) => {
   try {
     if (req.user.role !== "admin") {
@@ -180,7 +190,7 @@ export const postCommunityMessage = async (req, res, next) => {
         populate: { path: "authorId", select: "name role" },
       });
     const serialized = serializeMessage(populated);
-    getIO().to(communityRoom(access.landlordId)).emit("community:message", {
+    emitToRoomIfAvailable(communityRoom(access.landlordId), "community:message", {
       landlordId: String(access.landlordId),
       message: serialized,
     });
@@ -237,7 +247,7 @@ export const updateCommunityMemberModeration = async (req, res, next) => {
     }
 
     await member.save();
-    getIO().to(communityRoom(access.landlordId)).emit("community:member-moderated", {
+    emitToRoomIfAvailable(communityRoom(access.landlordId), "community:member-moderated", {
       landlordId: String(access.landlordId),
       memberId: String(member._id),
       moderation: getModerationState(member),

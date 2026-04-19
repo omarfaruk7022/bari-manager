@@ -6,6 +6,7 @@ import {
 } from "../services/communityChat.service.js";
 
 let io;
+let warnedAboutMissingIO = false;
 
 export const initIO = (server, allowedOrigins = []) => {
   io = new Server(server, {
@@ -71,8 +72,18 @@ export const initIO = (server, allowedOrigins = []) => {
 };
 
 export const getIO = () => {
-  if (!io) {
-    throw new Error("Socket.IO is not initialized");
-  }
   return io;
+};
+
+export const emitIfIO = (...args) => {
+  if (!io) {
+    if (!warnedAboutMissingIO) {
+      warnedAboutMissingIO = true;
+      console.warn("⚠️ Socket.IO is not initialized; skipping realtime emit");
+    }
+    return false;
+  }
+
+  io.emit(...args);
+  return true;
 };
