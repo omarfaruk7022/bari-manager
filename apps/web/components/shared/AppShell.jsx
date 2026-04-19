@@ -18,7 +18,7 @@ export function AppShell({ role, children }) {
 
   return (
     <AuthGuard role={role}>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 pb-10">
         <TopBar />
         <main className="pb-24 pt-4 lg:pb-10">
           <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 lg:px-6">

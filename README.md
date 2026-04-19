@@ -8,7 +8,7 @@ A mobile-first SaaS platform for house rental management in Bangladesh.
 
 | Layer      | Technology                          |
 |------------|-------------------------------------|
-| Frontend   | Next.js 14 (App Router), JSX, Tailwind CSS, shadcn/ui |
+| Frontend   | Next.js 16 (App Router), JSX, Tailwind CSS, shadcn/ui |
 | Backend    | Node.js, Express.js (MVC)           |
 | Database   | MongoDB + Mongoose                  |
 | Auth       | JWT (stateless)                     |
@@ -24,7 +24,7 @@ A mobile-first SaaS platform for house rental management in Bangladesh.
 ```
 bari-manager/
 ├── apps/
-│   ├── web/          → Next.js 14 frontend
+│   ├── web/          → Next.js 16 frontend
 │   └── api/          → Express.js backend
 └── packages/
     └── shared/       → Shared constants

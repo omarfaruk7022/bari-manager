@@ -6,7 +6,10 @@ import rateLimit from "express-rate-limit";
 import { connectDB } from "./config/db.js";
 import { mountRoutes } from "./routes/index.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
-import "./jobs/billGeneration.job.js";
+import {
+  runBillGenerationJob,
+  startBillGenerationJob,
+} from "./jobs/billGeneration.job.js";
 import "./jobs/paymentReminder.job.js";
 
 const app = express();
@@ -60,6 +63,8 @@ async function loadDbConfigs() {
 
 connectDB().then(async () => {
   await loadDbConfigs();
+  startBillGenerationJob();
+  await runBillGenerationJob();
   app.listen(process.env.API_PORT || 5000, () =>
     console.log(
       `✅ BariManager API running on port ${process.env.API_PORT || 5000}`,
