@@ -12,6 +12,7 @@ export const DEFAULT_PLAN_CONFIG = {
     reportMonths: 1,
     autoBill: false,
     googleAds: false,
+    communityChat: false,
     features: ["৫ ফ্ল্যাট", "২০ SMS", "১ মাস রিপোর্ট"],
   },
   standard: {
@@ -22,7 +23,8 @@ export const DEFAULT_PLAN_CONFIG = {
     reportMonths: 6,
     autoBill: true,
     googleAds: false,
-    features: ["২০ ফ্ল্যাট", "১০০ SMS", "৬ মাস রিপোর্ট", "অটো বিল"],
+    communityChat: true,
+    features: ["২০ ফ্ল্যাট", "১০০ SMS", "৬ মাস রিপোর্ট", "অটো বিল", "কমিউনিটি চ্যাট"],
   },
   premium: {
     name: "Premium",
@@ -32,7 +34,8 @@ export const DEFAULT_PLAN_CONFIG = {
     reportMonths: 12,
     autoBill: true,
     googleAds: false,
-    features: ["৭৫ ফ্ল্যাট", "৩০০ SMS", "১২ মাস রিপোর্ট", "অটো বিল"],
+    communityChat: true,
+    features: ["৭৫ ফ্ল্যাট", "৩০০ SMS", "১২ মাস রিপোর্ট", "অটো বিল", "কমিউনিটি চ্যাট"],
   },
   enterprise: {
     name: "Enterprise",
@@ -42,7 +45,8 @@ export const DEFAULT_PLAN_CONFIG = {
     reportMonths: 36,
     autoBill: true,
     googleAds: false,
-    features: ["৩০০ ফ্ল্যাট", "১০০০ SMS", "৩৬ মাস রিপোর্ট", "অটো বিল"],
+    communityChat: true,
+    features: ["৩০০ ফ্ল্যাট", "১০০০ SMS", "৩৬ মাস রিপোর্ট", "অটো বিল", "কমিউনিটি চ্যাট"],
   },
 };
 
@@ -62,6 +66,7 @@ export const normalizePlanCatalog = (catalog = {}) => {
       reportMonths: Number(incoming.reportMonths ?? defaults.reportMonths),
       autoBill: Boolean(incoming.autoBill ?? defaults.autoBill),
       googleAds: Boolean(incoming.googleAds ?? defaults.googleAds),
+      communityChat: Boolean(incoming.communityChat ?? defaults.communityChat),
       features: Array.isArray(incoming.features)
         ? incoming.features
         : defaults.features,

@@ -64,7 +64,7 @@ export default function AdminPlansPage() {
             <div>
               <h1 className="text-2xl font-black text-gray-950">সাবস্ক্রিপশন প্ল্যান</h1>
               <p className="text-sm text-gray-500">
-                মূল্য, SMS, ফ্ল্যাট, রিপোর্ট, অটো বিল এবং Google Ads অ্যাক্সেস পরিবর্তন করুন।
+                মূল্য, SMS, ফ্ল্যাট, রিপোর্ট, অটো বিল, চ্যাট এবং Google Ads অ্যাক্সেস পরিবর্তন করুন।
               </p>
             </div>
           </div>
@@ -126,6 +126,15 @@ export default function AdminPlansPage() {
                     />
                     Google Ads
                   </label>
+                  <label className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-bold text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={!!plan.communityChat}
+                      onChange={(e) => updatePlan(key, "communityChat", e.target.checked)}
+                      className="accent-emerald-700"
+                    />
+                    কমিউনিটি চ্যাট
+                  </label>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -180,6 +189,7 @@ export default function AdminPlansPage() {
                   {Number(plan.smsLimit || 0).toLocaleString("bn-BD")} SMS ·{" "}
                   {Number(plan.reportMonths || 0).toLocaleString("bn-BD")} মাস রিপোর্ট
                   {plan.autoBill ? " · অটো বিল" : ""}
+                  {plan.communityChat ? " · কমিউনিটি চ্যাট" : ""}
                   {plan.googleAds ? " · Google Ads" : ""}
                 </div>
               </div>

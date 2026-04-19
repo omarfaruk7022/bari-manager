@@ -53,7 +53,32 @@ const serializePost = (post, userId) => {
     reactionCount: (post.reactions || []).length,
     commentCount: (post.comments || []).length,
     currentReaction: currentReaction?.type || null,
+    canEdit:
+      String(post.authorId?._id || post.authorId) === String(userId)
+        ? post.status !== "approved"
+        : false,
   };
+};
+
+const getPostPayload = (body, fallbackPhone = "") => ({
+  title: body.title?.trim(),
+  description: body.description?.trim(),
+  location: body.location?.trim(),
+  rentAmount: Number(body.rentAmount),
+  bedrooms: Math.max(0, Number(body.bedrooms) || 0),
+  bathrooms: Math.max(0, Number(body.bathrooms) || 0),
+  phone: body.phone?.trim() || fallbackPhone || "",
+  imageUrl: body.imageUrl?.trim() || "",
+});
+
+const validatePostPayload = (payload) => {
+  if (!payload.title || !payload.description || !payload.location) {
+    return "শিরোনাম, বিবরণ এবং লোকেশন দিন";
+  }
+  if (!Number.isFinite(payload.rentAmount) || payload.rentAmount < 0) {
+    return "সঠিক ভাড়ার পরিমাণ দিন";
+  }
+  return null;
 };
 
 export const listToLetPosts = async (req, res, next) => {
@@ -81,37 +106,16 @@ export const createToLetPost = async (req, res, next) => {
     const accessError = ensureToLetAccess(req);
     if (accessError) return res.status(403).json({ success: false, message: accessError });
 
-    const {
-      title,
-      description,
-      location,
-      rentAmount,
-      bedrooms,
-      bathrooms,
-      phone,
-      imageUrl,
-    } = req.body;
-
-    if (!title?.trim() || !description?.trim() || !location?.trim()) {
-      return res.status(400).json({ success: false, message: "শিরোনাম, বিবরণ এবং লোকেশন দিন" });
-    }
-
-    const numericRent = Number(rentAmount);
-    if (!Number.isFinite(numericRent) || numericRent < 0) {
-      return res.status(400).json({ success: false, message: "সঠিক ভাড়ার পরিমাণ দিন" });
+    const payload = getPostPayload(req.body, req.user.phone);
+    const validationError = validatePostPayload(payload);
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
     }
 
     const post = await ToLetPost.create({
       authorId: req.user._id,
       authorRole: req.user.role,
-      title: title.trim(),
-      description: description.trim(),
-      location: location.trim(),
-      rentAmount: numericRent,
-      bedrooms: Math.max(0, Number(bedrooms) || 0),
-      bathrooms: Math.max(0, Number(bathrooms) || 0),
-      phone: phone?.trim() || req.user.phone || "",
-      imageUrl: imageUrl?.trim() || "",
+      ...payload,
       status: req.user.role === "admin" ? "approved" : "pending",
       approvedAt: req.user.role === "admin" ? new Date() : null,
       approvedBy: req.user.role === "admin" ? req.user._id : null,
@@ -128,6 +132,77 @@ export const createToLetPost = async (req, res, next) => {
         req.user.role === "admin"
           ? "পোস্ট প্রকাশ হয়েছে"
           : "পোস্ট জমা হয়েছে, সুপার অ্যাডমিন অনুমোদনের পর দেখানো হবে",
+      data: serializePost(populated, req.user._id),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const listMyToLetPosts = async (req, res, next) => {
+  try {
+    const accessError = ensureToLetAccess(req);
+    if (accessError) return res.status(403).json({ success: false, message: accessError });
+
+    const posts = await ToLetPost.find({ authorId: req.user._id })
+      .populate("authorId", "name role phone")
+      .populate("comments.userId", "name role")
+      .populate("reactions.userId", "name")
+      .sort({ updatedAt: -1 });
+
+    res.json({
+      success: true,
+      data: posts.map((post) => serializePost(post, req.user._id)),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateToLetPost = async (req, res, next) => {
+  try {
+    const accessError = ensureToLetAccess(req);
+    if (accessError) return res.status(403).json({ success: false, message: accessError });
+
+    const post = await ToLetPost.findById(req.params.id);
+    if (!post) return res.status(404).json({ success: false, message: "পোস্ট পাওয়া যায়নি" });
+
+    const isAuthor = String(post.authorId) === String(req.user._id);
+    const canEdit = req.user.role === "admin" || (isAuthor && post.status !== "approved");
+    if (!canEdit) {
+      return res.status(403).json({
+        success: false,
+        message: "অনুমোদিত পোস্ট কেবল সুপার অ্যাডমিন সম্পাদনা করতে পারবেন",
+      });
+    }
+
+    const payload = getPostPayload(req.body, post.phone || req.user.phone);
+    const validationError = validatePostPayload(payload);
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
+    }
+
+    Object.assign(post, payload);
+    if (req.user.role !== "admin" && post.status === "rejected") {
+      post.status = "pending";
+      post.rejectedAt = null;
+      post.rejectedBy = null;
+      post.rejectionReason = "";
+    }
+
+    await post.save();
+
+    const populated = await ToLetPost.findById(post._id)
+      .populate("authorId", "name role phone")
+      .populate("comments.userId", "name role")
+      .populate("reactions.userId", "name");
+
+    res.json({
+      success: true,
+      message:
+        req.user.role === "admin"
+          ? "পোস্ট আপডেট হয়েছে"
+          : "পোস্ট আপডেট হয়েছে, অনুমোদনের আগে আবার দেখা যাবে",
       data: serializePost(populated, req.user._id),
     });
   } catch (err) {

@@ -32,6 +32,7 @@ const communityChatMessageSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-communityChatMessageSchema.index({ landlordId: 1, createdAt: 1 });
+communityChatMessageSchema.index({ landlordId: 1, createdAt: -1, _id: -1 });
+communityChatMessageSchema.index({ landlordId: 1, replyTo: 1 });
 
 export default mongoose.model("CommunityChatMessage", communityChatMessageSchema);

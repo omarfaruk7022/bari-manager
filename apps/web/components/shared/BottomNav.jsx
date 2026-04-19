@@ -45,6 +45,7 @@ export const NAV_CONFIG = {
   admin: [
     { href: "/admin/dashboard", icon: Home, label: "হোম" },
     { href: "/admin/to-let", icon: Home, label: "To Let" },
+    { href: "/admin/community-chat", icon: MessageCircleMore, label: "চ্যাট" },
     { href: "/admin/landlords", icon: Users, label: "বাড়ীওয়ালা" },
     { href: "/admin/tenants", icon: Users, label: "ভাড়াটে" },
     { href: "/admin/plans", icon: Tags, label: "প্ল্যান" },
@@ -67,7 +68,7 @@ export function BottomNav({ role = "landlord" }) {
             <Link
               key={href}
               href={href}
-              className={`flex min-w-[78px] flex-1 flex-col items-center justify-center gap-1 py-2.5 text-xs font-medium transition-colors ${
+              className={`flex min-w-[78px] flex-1 cursor-pointer flex-col items-center justify-center gap-1 py-2.5 text-xs font-medium transition-colors ${
                 active ? "text-green-600" : "text-gray-400 hover:text-gray-700"
               }`}
             >

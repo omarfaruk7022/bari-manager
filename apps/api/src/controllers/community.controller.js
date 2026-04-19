@@ -1,126 +1,109 @@
 import CommunityChatMember from "../models/CommunityChatMember.model.js";
 import CommunityChatMessage from "../models/CommunityChatMessage.model.js";
-import Tenant from "../models/Tenant.model.js";
-import { normalizeBDPhone } from "./tenant.controller.js";
+import LandlordProfile from "../models/LandlordProfile.model.js";
+import { getPlanConfig } from "../utils/plans.js";
+import { getIO } from "../socket/index.js";
+import {
+  communityRoom,
+  ensureCommunityAccess,
+  fetchCommunityGroupInfo,
+  fetchRecentCommunityMessages,
+  getCommunityLandlordIdFromRequest,
+  getModerationState,
+  serializeMessage,
+} from "../services/communityChat.service.js";
 
-const getCommunityLandlordId = (req) => {
-  if (req.user.role === "tenant") return req.user.landlordId || null;
-  if (req.user.role === "landlord") return req.user._id;
-  return req.query.landlordId || req.body.landlordId || null;
-};
+export const listCommunityGroups = async (req, res, next) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ success: false, message: "এই কাজের অনুমতি নেই" });
+    }
 
-const getModerationState = (member) => {
-  const now = new Date();
-  const isMuted = Boolean(member?.muteUntil && member.muteUntil > now);
-  const isBanned = Boolean(member?.isBannedForever || (member?.banUntil && member.banUntil > now));
-
-  return {
-    isMuted,
-    muteUntil: member?.muteUntil || null,
-    isBanned,
-    banUntil: member?.banUntil || null,
-    isBannedForever: Boolean(member?.isBannedForever),
-    bannedReason: member?.bannedReason || "",
-  };
-};
-
-const resolveTenantMembership = async (req, landlordId) => {
-  const tenant = await Tenant.findOne({
-    landlordId,
-    $or: [
-      { userId: req.user._id },
-      {
-        phone: normalizeBDPhone(req.user.phone),
-        landlordId,
-      },
-      { email: req.user.email, landlordId },
-    ].filter((item) => Object.values(item).every(Boolean)),
-  });
-
-  if (!tenant) return null;
-
-  const member = await CommunityChatMember.findOneAndUpdate(
-    { landlordId, userId: req.user._id },
-    {
-      landlordId,
-      userId: req.user._id,
-      tenantId: tenant._id,
-      role: "tenant",
-    },
-    { new: true, upsert: true, setDefaultsOnInsert: true },
-  );
-
-  return { tenant, member };
-};
-
-const serializeMessage = (message) => ({
-  _id: message._id,
-  body: message.body,
-  createdAt: message.createdAt,
-  updatedAt: message.updatedAt,
-  authorRole: message.authorRole,
-  author: {
-    _id: message.authorId?._id || message.authorId,
-    name: message.authorId?.name || "অজানা",
-    role: message.authorId?.role || message.authorRole,
-  },
-  replyTo: message.replyTo
-    ? {
-        _id: message.replyTo._id,
-        body: message.replyTo.body,
-        createdAt: message.replyTo.createdAt,
-        author: {
-          _id: message.replyTo.authorId?._id || message.replyTo.authorId,
-          name: message.replyTo.authorId?.name || "অজানা",
-          role: message.replyTo.authorId?.role || message.replyTo.authorRole,
+    const [profiles, messageStats, memberStats] = await Promise.all([
+      LandlordProfile.find({})
+        .populate("userId", "name phone")
+        .sort({ updatedAt: -1 }),
+      CommunityChatMessage.aggregate([
+        {
+          $group: {
+            _id: "$landlordId",
+            messageCount: { $sum: 1 },
+            lastMessageAt: { $max: "$createdAt" },
+          },
         },
-      }
-    : null,
-});
+      ]),
+      CommunityChatMember.aggregate([
+        { $match: { role: "tenant" } },
+        {
+          $group: {
+            _id: "$landlordId",
+            memberCount: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+
+    const messageMap = new Map(messageStats.map((item) => [String(item._id), item]));
+    const memberMap = new Map(memberStats.map((item) => [String(item._id), item]));
+
+    const groups = await Promise.all(
+      profiles.map(async (profile) => {
+        const landlordId = String(profile.userId?._id || profile.userId);
+        const plan = await getPlanConfig(profile.plan);
+        const messageInfo = messageMap.get(landlordId);
+        const memberInfo = memberMap.get(landlordId);
+
+        return {
+          landlordId,
+          landlordName: profile.userId?.name || "অজানা বাড়ীওয়ালা",
+          propertyName: profile.propertyName || "কমিউনিটি গ্রুপ",
+          propertyAddress: profile.propertyAddress || "",
+          phone: profile.userId?.phone || profile.phone || "",
+          planKey: profile.plan || "basic",
+          communityChatEnabled: Boolean(plan?.communityChat),
+          memberCount: memberInfo?.memberCount || 0,
+          messageCount: messageInfo?.messageCount || 0,
+          lastMessageAt: messageInfo?.lastMessageAt || null,
+        };
+      }),
+    );
+
+    return res.json({
+      success: true,
+      data: groups.sort((a, b) => {
+        const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+        const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+        return bTime - aTime;
+      }),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 
 export const getCommunityState = async (req, res, next) => {
   try {
-    const landlordId = getCommunityLandlordId(req);
-    if (!landlordId) {
-      return res.status(400).json({ success: false, message: "বাড়ীওয়ালা নির্বাচন করুন" });
+    const landlordId = getCommunityLandlordIdFromRequest(req);
+    const access = await ensureCommunityAccess({ user: req.user, landlordId });
+    if (!access.ok) {
+      return res.status(access.status).json({ success: false, message: access.message });
     }
 
-    let currentMember = null;
-    if (req.user.role === "tenant") {
-      const membership = await resolveTenantMembership(req, landlordId);
-      if (!membership?.member) {
-        return res.status(403).json({ success: false, message: "এই কমিউনিটি চ্যাটে আপনার প্রবেশাধিকার নেই" });
-      }
-      currentMember = membership.member;
-    } else if (req.user.role === "landlord") {
-      currentMember = await CommunityChatMember.findOneAndUpdate(
-        { landlordId, userId: req.user._id },
-        { landlordId, userId: req.user._id, role: "landlord" },
-        { new: true, upsert: true, setDefaultsOnInsert: true },
-      );
-    }
-
-    const messages = await CommunityChatMessage.find({ landlordId })
-      .populate("authorId", "name role")
-      .populate({
-        path: "replyTo",
-        populate: { path: "authorId", select: "name role" },
-      })
-      .sort({ createdAt: 1 })
-      .limit(300);
+    const messages = await fetchRecentCommunityMessages(access.landlordId, 100);
 
     const response = {
       success: true,
       data: {
-        landlordId,
+        landlordId: access.landlordId,
         currentUserRole: req.user.role,
-        moderation: getModerationState(currentMember),
-        messages: messages.map(serializeMessage),
+        groupInfo: await fetchCommunityGroupInfo(access.landlordId),
+        moderation: access.moderation,
+        messages,
       },
     };
 
     if (req.user.role === "landlord" || req.user.role === "admin") {
-      const members = await CommunityChatMember.find({ landlordId, role: "tenant" })
+      const members = await CommunityChatMember.find({ landlordId: access.landlordId, role: "tenant" })
         .populate("userId", "name phone email")
         .populate("tenantId", "propertyId name isActive");
 
@@ -156,45 +139,35 @@ export const getCommunityState = async (req, res, next) => {
 
 export const postCommunityMessage = async (req, res, next) => {
   try {
-    const landlordId = getCommunityLandlordId(req);
+    const landlordId = getCommunityLandlordIdFromRequest(req);
     const { body, replyTo } = req.body;
-
-    if (!landlordId) {
-      return res.status(400).json({ success: false, message: "বাড়ীওয়ালা নির্বাচন করুন" });
+    const access = await ensureCommunityAccess({ user: req.user, landlordId });
+    if (!access.ok) {
+      return res.status(access.status).json({ success: false, message: access.message });
     }
     if (!body?.trim()) {
       return res.status(400).json({ success: false, message: "বার্তা লিখুন" });
     }
 
-    let tenantId = null;
-    let moderation = {};
-    if (req.user.role === "tenant") {
-      const membership = await resolveTenantMembership(req, landlordId);
-      if (!membership?.member) {
-        return res.status(403).json({ success: false, message: "এই কমিউনিটি চ্যাটে আপনার প্রবেশাধিকার নেই" });
-      }
-      tenantId = membership.tenant?._id || null;
-      moderation = getModerationState(membership.member);
-      if (moderation.isBanned) {
-        return res.status(403).json({ success: false, message: "আপনি এই কমিউনিটি চ্যাটে ব্যান আছেন" });
-      }
-      if (moderation.isMuted) {
-        return res.status(403).json({ success: false, message: "আপনি বর্তমানে মিউট আছেন" });
-      }
+    if (access.moderation?.isBanned) {
+      return res.status(403).json({ success: false, message: "আপনি এই কমিউনিটি চ্যাটে ব্যান আছেন" });
+    }
+    if (access.moderation?.isMuted) {
+      return res.status(403).json({ success: false, message: "আপনি বর্তমানে মিউট আছেন" });
     }
 
     let replyMessage = null;
     if (replyTo) {
-      replyMessage = await CommunityChatMessage.findOne({ _id: replyTo, landlordId });
+      replyMessage = await CommunityChatMessage.findOne({ _id: replyTo, landlordId: access.landlordId });
       if (!replyMessage) {
         return res.status(404).json({ success: false, message: "যে বার্তায় রিপ্লাই দিচ্ছেন তা পাওয়া যায়নি" });
       }
     }
 
     const message = await CommunityChatMessage.create({
-      landlordId,
+      landlordId: access.landlordId,
       authorId: req.user._id,
-      tenantId,
+      tenantId: access.tenantId,
       authorRole: req.user.role,
       body: body.trim(),
       replyTo: replyMessage?._id || null,
@@ -206,11 +179,16 @@ export const postCommunityMessage = async (req, res, next) => {
         path: "replyTo",
         populate: { path: "authorId", select: "name role" },
       });
+    const serialized = serializeMessage(populated);
+    getIO().to(communityRoom(access.landlordId)).emit("community:message", {
+      landlordId: String(access.landlordId),
+      message: serialized,
+    });
 
     return res.status(201).json({
       success: true,
       message: "বার্তা পাঠানো হয়েছে",
-      data: serializeMessage(populated),
+      data: serialized,
     });
   } catch (err) {
     next(err);
@@ -219,14 +197,18 @@ export const postCommunityMessage = async (req, res, next) => {
 
 export const updateCommunityMemberModeration = async (req, res, next) => {
   try {
-    const landlordId = getCommunityLandlordId(req);
+    const landlordId = getCommunityLandlordIdFromRequest(req);
     if (!landlordId || (req.user.role !== "landlord" && req.user.role !== "admin")) {
       return res.status(403).json({ success: false, message: "এই কাজের অনুমতি নেই" });
+    }
+    const access = await ensureCommunityAccess({ user: req.user, landlordId });
+    if (!access.ok) {
+      return res.status(access.status).json({ success: false, message: access.message });
     }
 
     const member = await CommunityChatMember.findOne({
       _id: req.params.memberId,
-      landlordId,
+      landlordId: access.landlordId,
       role: "tenant",
     });
     if (!member) {
@@ -255,6 +237,13 @@ export const updateCommunityMemberModeration = async (req, res, next) => {
     }
 
     await member.save();
+    getIO().to(communityRoom(access.landlordId)).emit("community:member-moderated", {
+      landlordId: String(access.landlordId),
+      memberId: String(member._id),
+      moderation: getModerationState(member),
+      bannedReason: member.bannedReason || "",
+      userId: String(member.userId),
+    });
 
     return res.json({
       success: true,

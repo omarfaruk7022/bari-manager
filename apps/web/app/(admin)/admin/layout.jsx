@@ -24,7 +24,9 @@ export default function AdminLayout({ children }) {
               </div>
               <div>
                 <p className="text-lg font-black">BariManager</p>
-                <p className="text-xs font-medium text-gray-500">সুপার অ্যাডমিন</p>
+                <p className="text-xs font-medium text-gray-500">
+                  সুপার অ্যাডমিন
+                </p>
               </div>
             </div>
 
@@ -66,7 +68,9 @@ export default function AdminLayout({ children }) {
                   <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
                     Admin console
                   </p>
-                  <p className="text-lg font-black text-gray-950">সিস্টেম ড্যাশবোর্ড</p>
+                  <p className="text-lg font-black text-gray-950">
+                    সিস্টেম ড্যাশবোর্ড
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -86,7 +90,7 @@ export default function AdminLayout({ children }) {
             </header>
 
             <main className="px-4 pb-24 pt-5 lg:px-8 lg:pb-10">
-              <div className="mx-auto max-w-7xl">{children}</div>
+              <div className="mx-auto max-w-full">{children}</div>
             </main>
           </div>
         </div>

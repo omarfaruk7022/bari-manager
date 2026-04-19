@@ -17,7 +17,7 @@ export function DesktopNav({ role }) {
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors ${
+              className={`flex cursor-pointer items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors ${
                 active
                   ? "bg-green-50 text-green-700"
                   : "text-gray-600 hover:bg-gray-50"
