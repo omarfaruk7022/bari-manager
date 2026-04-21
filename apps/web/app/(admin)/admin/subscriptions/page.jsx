@@ -45,6 +45,7 @@ const planPrice = (plans, key, snapshot) =>
 export default function AdminSubscriptionsPage() {
   const [filter, setFilter] = useState("pending");
   const [acting, setActing] = useState(null);
+  const [selectedPlans, setSelectedPlans] = useState({});
   const queryClient = useQueryClient();
   const { data: subs = [], isLoading: loading } = useQuery({
     queryKey: ["admin", "subscriptions", filter],
@@ -65,7 +66,8 @@ export default function AdminSubscriptionsPage() {
       queryClient.invalidateQueries({ queryKey: ["admin", "stats"] }),
     ]);
   const approveMutation = useMutation({
-    mutationFn: (id) => api.put(`/admin/subscriptions/${id}/approve`),
+    mutationFn: ({ id, requestedPlan }) =>
+      api.put(`/admin/subscriptions/${id}/approve`, { requestedPlan }),
     onSuccess: async (res) => {
       toast.success(res.data.message);
       await refresh();
@@ -84,9 +86,9 @@ export default function AdminSubscriptionsPage() {
       toast.error(err.response?.data?.message || "সমস্যা হয়েছে"),
   });
 
-  const approve = async (id) => {
+  const approve = async (id, requestedPlan) => {
     setActing(id + "-approve");
-    approveMutation.mutate(id, { onSettled: () => setActing(null) });
+    approveMutation.mutate({ id, requestedPlan }, { onSettled: () => setActing(null) });
   };
 
   const reject = async (id) => {
@@ -194,7 +196,30 @@ export default function AdminSubscriptionsPage() {
                 </p>
 
                 {s.status === "pending" && (
-                  <div className="flex gap-3 pt-1">
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-gray-700">
+                        অনুমোদনের প্ল্যান
+                      </label>
+                      <select
+                        value={selectedPlans[s._id] || s.requestedPlan || "basic"}
+                        onChange={(e) =>
+                          setSelectedPlans((current) => ({
+                            ...current,
+                            [s._id]: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm"
+                      >
+                        {Object.keys(plans || PLAN_LABELS).map((planKey) => (
+                          <option key={planKey} value={planKey}>
+                            {planName(plans, planKey)} · ৳
+                            {planPrice(plans, planKey).toLocaleString("bn-BD")}/মাস
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex gap-3">
                     <button
                       onClick={() => reject(s._id)}
                       disabled={!!acting}
@@ -205,7 +230,9 @@ export default function AdminSubscriptionsPage() {
                         : "প্রত্যাখ্যান"}
                     </button>
                     <button
-                      onClick={() => approve(s._id)}
+                      onClick={() =>
+                        approve(s._id, selectedPlans[s._id] || s.requestedPlan || "basic")
+                      }
                       disabled={!!acting}
                       className="flex-1 bg-green-600 text-white py-3 rounded-xl font-medium text-sm disabled:opacity-50"
                     >
@@ -213,6 +240,7 @@ export default function AdminSubscriptionsPage() {
                         ? "প্রক্রিয়াধীন..."
                         : "অনুমোদন করুন"}
                     </button>
+                    </div>
                   </div>
                 )}
               </div>

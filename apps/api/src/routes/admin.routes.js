@@ -24,6 +24,12 @@ import {
   bulkUpdateConfigs,
   deleteConfig,
   systemStats,
+  listSystemExpenses,
+  createSystemExpense,
+  updateSystemExpense,
+  removeSystemExpense,
+  subscriptionIncomeReport,
+  systemFinanceReport,
   resetUserPassword,
   updateLandlordBillSettings,
   getPlans,
@@ -64,6 +70,12 @@ router.delete("/config/:key", deleteConfig);
 
 // Super admin extras
 router.get("/system-stats", systemStats);
+router.get("/system-expenses", listSystemExpenses);
+router.post("/system-expenses", createSystemExpense);
+router.put("/system-expenses/:id", updateSystemExpense);
+router.delete("/system-expenses/:id", removeSystemExpense);
+router.get("/reports/subscription-income", subscriptionIncomeReport);
+router.get("/reports/system-finance", systemFinanceReport);
 router.get("/plans", getPlans);
 router.put("/plans", updatePlans);
 router.post("/reset-password", resetUserPassword);

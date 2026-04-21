@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"landlordId":{"$numberInt":"1"},"month":{"$numberInt":"1"}},"name":"landlordId_1_month_1","background":true}],"uuid":"42505a2e80a44d5e913fe4003ac19aa8","collectionName":"expenses","type":"collection"}

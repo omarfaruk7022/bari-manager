@@ -11,6 +11,8 @@ export default function AdminTenantsPage() {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(null);
   const [selected, setSelected] = useState(null);
+  const [passwordModal, setPasswordModal] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
   const now = new Date();
   const [billMonth, setBillMonth] = useState(
     `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
@@ -52,6 +54,15 @@ export default function AdminTenantsPage() {
     onError: (err) =>
       toast.error(err.response?.data?.message || "আপডেট করা যায়নি"),
   });
+  const passwordMutation = useMutation({
+    mutationFn: ({ userId, newPassword }) =>
+      api.post("/auth/admin-reset-password", { userId, newPassword }),
+    onSuccess: () => {
+      toast.success("ভাড়াটের পাসওয়ার্ড পরিবর্তন হয়েছে");
+    },
+    onError: (err) =>
+      toast.error(err.response?.data?.message || "পাসওয়ার্ড পরিবর্তন করা যায়নি"),
+  });
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/admin/tenants/${id}`),
     onSuccess: async () => {
@@ -80,6 +91,29 @@ export default function AdminTenantsPage() {
     onError: (err) =>
       toast.error(err.response?.data?.message || "বিল তৈরি করা যায়নি"),
   });
+
+  const openPasswordModal = (target) => {
+    setPasswordModal(target);
+    setNewPassword("");
+  };
+
+  const closePasswordModal = () => {
+    setPasswordModal(null);
+    setNewPassword("");
+  };
+
+  const submitPasswordChange = (e) => {
+    e.preventDefault();
+    if (!passwordModal?.userId) return;
+    if (!newPassword.trim()) {
+      toast.error("নতুন পাসওয়ার্ড লিখুন");
+      return;
+    }
+    passwordMutation.mutate(
+      { userId: passwordModal.userId, newPassword: newPassword.trim() },
+      { onSuccess: () => closePasswordModal() },
+    );
+  };
 
   return (
     <div className="space-y-4 py-4">
@@ -158,33 +192,43 @@ export default function AdminTenantsPage() {
                   }}
                   className="mt-4 grid gap-3 border-t border-gray-100 pt-4 md:grid-cols-2"
                 >
-                  <input
-                    name="name"
-                    defaultValue={tenant.name}
-                    className="rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                  <input
-                    name="phone"
-                    defaultValue={tenant.phone}
-                    className="rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                  <input
-                    name="email"
-                    defaultValue={tenant.email}
-                    className="rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                  <input
-                    name="monthlyRent"
-                    type="number"
-                    defaultValue={tenant.monthlyRent}
-                    className="rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                  <input
-                    name="advanceAmount"
-                    type="number"
-                    defaultValue={tenant.advanceAmount || 0}
-                    className="rounded-lg border border-gray-200 px-3 py-2"
-                  />
+                  <Field label="ভাড়াটের নাম">
+                    <input
+                      name="name"
+                      defaultValue={tenant.name}
+                      className="rounded-lg border border-gray-200 px-3 py-2"
+                    />
+                  </Field>
+                  <Field label="মোবাইল নম্বর">
+                    <input
+                      name="phone"
+                      defaultValue={tenant.phone}
+                      className="rounded-lg border border-gray-200 px-3 py-2"
+                    />
+                  </Field>
+                  <Field label="ইমেইল">
+                    <input
+                      name="email"
+                      defaultValue={tenant.email}
+                      className="rounded-lg border border-gray-200 px-3 py-2"
+                    />
+                  </Field>
+                  <Field label="মাসিক ভাড়া">
+                    <input
+                      name="monthlyRent"
+                      type="number"
+                      defaultValue={tenant.monthlyRent}
+                      className="rounded-lg border border-gray-200 px-3 py-2"
+                    />
+                  </Field>
+                  <Field label="অগ্রিম">
+                    <input
+                      name="advanceAmount"
+                      type="number"
+                      defaultValue={tenant.advanceAmount || 0}
+                      className="rounded-lg border border-gray-200 px-3 py-2"
+                    />
+                  </Field>
                   <div className="flex gap-2 md:col-span-2">
                     <button
                       type="button"
@@ -214,6 +258,22 @@ export default function AdminTenantsPage() {
                     className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700"
                   >
                     <Edit3 size={16} /> সম্পাদনা
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!tenant.userId?._id) {
+                        toast.error("এই ভাড়াটের কোনো লগইন অ্যাকাউন্ট নেই");
+                        return;
+                      }
+                      openPasswordModal({
+                        userId: tenant.userId._id,
+                        name: tenant.name,
+                        roleLabel: "ভাড়াটে",
+                      });
+                    }}
+                    className="flex items-center gap-2 rounded-lg border border-amber-200 px-3 py-2 text-sm text-amber-700"
+                  >
+                    পাসওয়ার্ড
                   </button>
                   <button
                     onClick={() => {
@@ -324,6 +384,49 @@ export default function AdminTenantsPage() {
           </div>
         </div>
       )}
+
+      {passwordModal && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+            <div className="mb-4">
+              <p className="text-lg font-bold text-gray-900">
+                {passwordModal.roleLabel} পাসওয়ার্ড পরিবর্তন
+              </p>
+              <p className="mt-1 text-sm text-gray-500">{passwordModal.name}</p>
+            </div>
+
+            <form onSubmit={submitPasswordChange} className="space-y-4">
+              <label className="grid gap-1.5 text-sm font-medium text-gray-700">
+                <span>নতুন পাসওয়ার্ড</span>
+                <input
+                  type="text"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="rounded-lg border border-gray-200 px-3 py-2"
+                  autoFocus
+                />
+              </label>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={closePasswordModal}
+                  className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-700"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={passwordMutation.isPending}
+                  className="flex-1 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                >
+                  {passwordMutation.isPending ? "সংরক্ষণ..." : "পাসওয়ার্ড পরিবর্তন"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -334,5 +437,14 @@ function Info({ label, value }) {
       <p className="text-xs font-semibold text-gray-500">{label}</p>
       <p className="mt-1 text-sm font-bold text-gray-900">{value}</p>
     </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <label className="grid gap-1.5 text-sm font-medium text-gray-700">
+      <span>{label}</span>
+      {children}
+    </label>
   );
 }

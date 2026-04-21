@@ -25,6 +25,8 @@ export default function AdminLandlordsPage() {
   const [editing, setEditing] = useState(null);
   const [toggling, setToggling] = useState(null);
   const [smsTopUp, setSmsTopUp] = useState(null);
+  const [passwordModal, setPasswordModal] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
   const { data: landlords = [], isLoading: loading } = useQuery({
     queryKey: ["admin", "landlords"],
     queryFn: () => request({ url: "/admin/landlords" }),
@@ -59,6 +61,15 @@ export default function AdminLandlordsPage() {
     onError: (err) =>
       toast.error(err.response?.data?.message || "আপডেট করা যায়নি"),
   });
+  const passwordMutation = useMutation({
+    mutationFn: ({ userId, newPassword }) =>
+      api.post("/auth/admin-reset-password", { userId, newPassword }),
+    onSuccess: (res) => {
+      toast.success(res.data.message);
+    },
+    onError: (err) =>
+      toast.error(err.response?.data?.message || "পাসওয়ার্ড পরিবর্তন করা যায়নি"),
+  });
   const extendSmsMutation = useMutation({
     mutationFn: ({ id, addLimit }) => api.post(`/admin/landlords/${id}/extend-sms`, { addLimit }),
     onSuccess: async () => {
@@ -82,6 +93,29 @@ export default function AdminLandlordsPage() {
   const toggle = async (id) => {
     setToggling(id);
     toggleMutation.mutate(id, { onSettled: () => setToggling(null) });
+  };
+
+  const openPasswordModal = (target) => {
+    setPasswordModal(target);
+    setNewPassword("");
+  };
+
+  const closePasswordModal = () => {
+    setPasswordModal(null);
+    setNewPassword("");
+  };
+
+  const submitPasswordChange = (e) => {
+    e.preventDefault();
+    if (!passwordModal?.userId) return;
+    if (!newPassword.trim()) {
+      toast.error("নতুন পাসওয়ার্ড লিখুন");
+      return;
+    }
+    passwordMutation.mutate(
+      { userId: passwordModal.userId, newPassword: newPassword.trim() },
+      { onSuccess: () => closePasswordModal() },
+    );
   };
 
   return (
@@ -173,48 +207,62 @@ export default function AdminLandlordsPage() {
                   }}
                   className="grid gap-3 border-t border-gray-100 pt-4 md:grid-cols-2"
                 >
-                  <input
-                    name="name"
-                    defaultValue={l.name}
-                    className="rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                  <input
-                    name="email"
-                    defaultValue={l.email}
-                    className="rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                  <input
-                    name="phone"
-                    defaultValue={l.phone}
-                    className="rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                  <input
-                    name="propertyName"
-                    defaultValue={l.profile?.propertyName}
-                    className="rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                  <input
-                    name="propertyAddress"
-                    defaultValue={l.profile?.propertyAddress}
-                    className="rounded-lg border border-gray-200 px-3 py-2 md:col-span-2"
-                  />
-                  <select
-                    name="plan"
-                    defaultValue={l.profile?.plan || "basic"}
-                    className="rounded-lg border border-gray-200 px-3 py-2"
-                  >
-                    {planOptions.map((plan) => (
-                      <option key={plan.value} value={plan.value}>
-                        {plan.label} · ৳{plan.price.toLocaleString("bn-BD")}/মাস
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    name="totalUnits"
-                    type="number"
-                    defaultValue={l.profile?.totalUnits || 0}
-                    className="rounded-lg border border-gray-200 px-3 py-2"
-                  />
+                  <FormField label="বাড়ীওয়ালার নাম">
+                    <input
+                      name="name"
+                      defaultValue={l.name}
+                      className="rounded-lg border border-gray-200 px-3 py-2"
+                    />
+                  </FormField>
+                  <FormField label="ইমেইল">
+                    <input
+                      name="email"
+                      defaultValue={l.email}
+                      className="rounded-lg border border-gray-200 px-3 py-2"
+                    />
+                  </FormField>
+                  <FormField label="মোবাইল নম্বর">
+                    <input
+                      name="phone"
+                      defaultValue={l.phone}
+                      className="rounded-lg border border-gray-200 px-3 py-2"
+                    />
+                  </FormField>
+                  <FormField label="বাড়ির নাম">
+                    <input
+                      name="propertyName"
+                      defaultValue={l.profile?.propertyName}
+                      className="rounded-lg border border-gray-200 px-3 py-2"
+                    />
+                  </FormField>
+                  <FormField label="বাড়ির ঠিকানা" className="md:col-span-2">
+                    <input
+                      name="propertyAddress"
+                      defaultValue={l.profile?.propertyAddress}
+                      className="rounded-lg border border-gray-200 px-3 py-2"
+                    />
+                  </FormField>
+                  <FormField label="সাবস্ক্রিপশন প্ল্যান">
+                    <select
+                      name="plan"
+                      defaultValue={l.profile?.plan || "basic"}
+                      className="rounded-lg border border-gray-200 px-3 py-2"
+                    >
+                      {planOptions.map((plan) => (
+                        <option key={plan.value} value={plan.value}>
+                          {plan.label} · ৳{plan.price.toLocaleString("bn-BD")}/মাস
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                  <FormField label="মোট ইউনিট">
+                    <input
+                      name="totalUnits"
+                      type="number"
+                      defaultValue={l.profile?.totalUnits || 0}
+                      className="rounded-lg border border-gray-200 px-3 py-2"
+                    />
+                  </FormField>
                   <div className="flex gap-2 md:col-span-2">
                     <button
                       type="button"
@@ -238,6 +286,18 @@ export default function AdminLandlordsPage() {
                     className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700"
                   >
                     <Edit3 size={16} /> সম্পাদনা
+                  </button>
+                  <button
+                    onClick={() => {
+                      openPasswordModal({
+                        userId: l._id,
+                        name: l.name,
+                        roleLabel: "বাড়ীওয়ালা",
+                      });
+                    }}
+                    className="flex items-center gap-2 rounded-lg border border-amber-200 px-3 py-2 text-sm text-amber-700"
+                  >
+                    পাসওয়ার্ড
                   </button>
                   <button
                     onClick={() => setSmsTopUp(l._id)}
@@ -300,6 +360,58 @@ export default function AdminLandlordsPage() {
           ))}
         </div>
       )}
+
+      {passwordModal && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+            <div className="mb-4">
+              <p className="text-lg font-bold text-gray-900">
+                {passwordModal.roleLabel} পাসওয়ার্ড পরিবর্তন
+              </p>
+              <p className="mt-1 text-sm text-gray-500">{passwordModal.name}</p>
+            </div>
+
+            <form onSubmit={submitPasswordChange} className="space-y-4">
+              <label className="grid gap-1.5 text-sm font-medium text-gray-700">
+                <span>নতুন পাসওয়ার্ড</span>
+                <input
+                  type="text"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="rounded-lg border border-gray-200 px-3 py-2"
+                  autoFocus
+                />
+              </label>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={closePasswordModal}
+                  className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-700"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={passwordMutation.isPending}
+                  className="flex-1 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                >
+                  {passwordMutation.isPending ? "সংরক্ষণ..." : "পাসওয়ার্ড পরিবর্তন"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function FormField({ label, className = "", children }) {
+  return (
+    <label className={`grid gap-1.5 text-sm font-medium text-gray-700 ${className}`}>
+      <span>{label}</span>
+      {children}
+    </label>
   );
 }

@@ -29,6 +29,7 @@ const userSchema = new mongoose.Schema(
     // OTP-based password reset (SMS preferred in BD)
     resetOtp: { type: String, select: false },
     resetOtpExpiry: { type: Date, select: false },
+    forgotPasswordUsedCount: { type: Number, default: 0 },
     // Language preference
     language: { type: String, enum: ["bn", "en"], default: "bn" },
   },

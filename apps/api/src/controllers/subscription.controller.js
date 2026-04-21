@@ -10,6 +10,7 @@ import {
   sendCredentialsSMS,
   sendRejectionSMS,
 } from "../services/sms.service.js";
+import { sendTelegramLandlordRequestAlert } from "../services/telegram.service.js";
 import { DEFAULT_PLAN, getPlanCatalog, getPlanConfig } from "../utils/plans.js";
 
 export const plans = async (req, res, next) => {
@@ -83,6 +84,10 @@ export const apply = async (req, res, next) => {
       message: "আবেদন সফল। অ্যাডমিন শীঘ্রই যোগাযোগ করবেন।",
       data: sub,
     });
+
+    sendTelegramLandlordRequestAlert(sub).catch((err) =>
+      console.error("Telegram alert error (non-fatal):", err.message),
+    );
   } catch (err) {
     next(err);
   }
@@ -154,7 +159,11 @@ export const approve = async (req, res, next) => {
 
     const user = await User.create(userPayload);
 
-    const selectedPlan = await getPlanConfig(sub.requestedPlan);
+    const planKey = req.body.requestedPlan || sub.requestedPlan || DEFAULT_PLAN;
+    const selectedPlan = await getPlanConfig(planKey);
+    sub.requestedPlan = planKey;
+    sub.requestedPlanPrice = selectedPlan.price;
+
     await LandlordProfile.create({
       userId: user._id,
       propertyName: sub.propertyName || sub.applicantName + "-এর বাড়ি",
@@ -162,7 +171,7 @@ export const approve = async (req, res, next) => {
       phone: normalizeBDPhone(sub.phone),
       totalUnits: sub.totalUnits || 0,
       subscriptionId: sub._id,
-      plan: sub.requestedPlan || DEFAULT_PLAN,
+      plan: planKey,
       smsLimit: selectedPlan.smsLimit,
       flatLimit: selectedPlan.flatLimit,
       reportMonths: selectedPlan.reportMonths,
@@ -193,7 +202,7 @@ export const approve = async (req, res, next) => {
 
     res.json({
       success: true,
-      message: "অনুমোদিত হয়েছে। ইমেইলে লগইন তথ্য পাঠানো হয়েছে।",
+      message: "অনুমোদিত হয়েছে। লগইন তথ্য পাঠানো হয়েছে।",
     });
   } catch (err) {
     next(err);

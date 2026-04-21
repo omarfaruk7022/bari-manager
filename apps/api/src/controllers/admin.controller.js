@@ -6,6 +6,7 @@ import Expense from "../models/Expense.model.js";
 import Payment from "../models/Payment.model.js";
 import Notification from "../models/Notification.model.js";
 import LandlordProfile from "../models/LandlordProfile.model.js";
+import Subscription from "../models/Subscription.model.js";
 import { getPlanConfig } from "../utils/plans.js";
 import { sendBillReadyNotification } from "../services/notification.service.js";
 
@@ -89,13 +90,20 @@ export const updateLandlord = async (req, res, next) => {
         .status(404)
         .json({ success: false, message: "বাড়ীওয়ালা পাওয়া যায়নি" });
 
-    await LandlordProfile.findOneAndUpdate(
+    const profile = await LandlordProfile.findOneAndUpdate(
       { userId: landlord._id },
       {
         $set: profileUpdate,
       },
       { new: true },
     );
+
+    if (profile?.subscriptionId && req.body.plan) {
+      await Subscription.findByIdAndUpdate(profile.subscriptionId, {
+        requestedPlan: req.body.plan,
+        requestedPlanPrice: plan.price,
+      });
+    }
 
     res.json({
       success: true,

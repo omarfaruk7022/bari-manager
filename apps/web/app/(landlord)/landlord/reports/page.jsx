@@ -7,7 +7,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { BadgePlus, ReceiptText, TrendingDown } from "lucide-react";
+import { BadgePlus, Pencil, ReceiptText, Trash2, TrendingDown } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -57,6 +57,7 @@ export default function ReportsPage() {
   const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState(currentMonth);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [expenseForm, setExpenseForm] = useState({
     title: "",
     amount: "",
@@ -126,6 +127,42 @@ export default function ReportsPage() {
       toast.error(err.response?.data?.message || "খরচ যুক্ত করা যায়নি");
     },
   });
+  const updateExpenseMutation = useMutation({
+    mutationFn: async ({ id, payload }) => api.put(`/landlord/expenses/${id}`, payload),
+    onSuccess: async () => {
+      toast.success("খরচ আপডেট হয়েছে");
+      setShowExpenseForm(false);
+      setEditingExpenseId(null);
+      setExpenseForm({ title: "", amount: "", category: "other" });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["landlord", "expenses", month] }),
+        queryClient.invalidateQueries({ queryKey: ["landlord", "reports", "monthly", month] }),
+        queryClient.invalidateQueries({ queryKey: ["landlord", "reports", "yearly", year] }),
+      ]);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "খরচ আপডেট করা যায়নি");
+    },
+  });
+  const deleteExpenseMutation = useMutation({
+    mutationFn: async (id) => api.delete(`/landlord/expenses/${id}`),
+    onSuccess: async () => {
+      toast.success("খরচ মুছে গেছে");
+      if (editingExpenseId) {
+        setEditingExpenseId(null);
+        setShowExpenseForm(false);
+        setExpenseForm({ title: "", amount: "", category: "other" });
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["landlord", "expenses", month] }),
+        queryClient.invalidateQueries({ queryKey: ["landlord", "reports", "monthly", month] }),
+        queryClient.invalidateQueries({ queryKey: ["landlord", "reports", "yearly", year] }),
+      ]);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "খরচ মুছতে সমস্যা হয়েছে");
+    },
+  });
 
   const chartData = useMemo(
     () =>
@@ -138,7 +175,6 @@ export default function ReportsPage() {
     [yearly],
   );
 
-  const latestExpenses = expenses.slice(0, 4);
   const expenseTotal = useMemo(
     () => expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
     [expenses],
@@ -151,12 +187,34 @@ export default function ReportsPage() {
       return;
     }
 
-    addExpenseMutation.mutate({
+    const payload = {
       title: expenseForm.title,
       amount: Number(expenseForm.amount),
       category: expenseForm.category,
       month,
+    };
+
+    if (editingExpenseId) {
+      updateExpenseMutation.mutate({ id: editingExpenseId, payload });
+      return;
+    }
+
+    addExpenseMutation.mutate(payload);
+  };
+
+  const startExpenseEdit = (expense) => {
+    setEditingExpenseId(expense._id);
+    setShowExpenseForm(true);
+    setExpenseForm({
+      title: expense.title || "",
+      amount: String(expense.amount || ""),
+      category: expense.category || "other",
     });
+  };
+
+  const handleExpenseDelete = (expenseId) => {
+    if (!confirm("এই খরচ মুছবেন?")) return;
+    deleteExpenseMutation.mutate(expenseId);
   };
 
   return (
@@ -260,7 +318,7 @@ export default function ReportsPage() {
                 মাসিক খরচ ব্যবস্থাপনা
               </div>
               <h2 className="mt-3 text-lg font-bold text-gray-900">
-                রিপোর্ট দেখার সময়ই খরচ যোগ করুন
+                রিপোর্ট দেখার সময়ই খরচ যোগ বা এডিট করুন
               </h2>
               <p className="mt-1 text-sm leading-6 text-gray-600">
                 এই মাসের রিপোর্টের খরচ হিসাব এখান থেকেই আপডেট হবে।
@@ -325,17 +383,25 @@ export default function ReportsPage() {
               <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowExpenseForm(false)}
+                  onClick={() => {
+                    setShowExpenseForm(false);
+                    setEditingExpenseId(null);
+                    setExpenseForm({ title: "", amount: "", category: "other" });
+                  }}
                   className="flex-1 rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-600"
                 >
                   বাতিল
                 </button>
                 <button
                   type="submit"
-                  disabled={addExpenseMutation.isPending}
+                  disabled={addExpenseMutation.isPending || updateExpenseMutation.isPending}
                   className="flex-1 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:bg-emerald-300"
                 >
-                  {addExpenseMutation.isPending ? "সংরক্ষণ..." : "খরচ সংরক্ষণ"}
+                  {addExpenseMutation.isPending || updateExpenseMutation.isPending
+                    ? "সংরক্ষণ..."
+                    : editingExpenseId
+                      ? "খরচ আপডেট করুন"
+                      : "খরচ সংরক্ষণ"}
                 </button>
               </div>
             </form>
@@ -346,8 +412,8 @@ export default function ReportsPage() {
               [1, 2].map((item) => (
                 <div key={item} className="h-20 animate-pulse rounded-lg bg-gray-100" />
               ))
-            ) : latestExpenses.length ? (
-              latestExpenses.map((expense) => (
+            ) : expenses.length ? (
+              expenses.map((expense) => (
                 <div
                   key={expense._id}
                   className="flex items-start justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-3"
@@ -363,9 +429,25 @@ export default function ReportsPage() {
                     </p>
                     <p className="mt-1 text-xs text-gray-500">{month} মাস</p>
                   </div>
-                  <p className="pl-3 text-sm font-bold text-gray-900">
-                    {formatMoney(expense.amount)}
-                  </p>
+                  <div className="flex items-center gap-3 pl-3">
+                    <p className="text-sm font-bold text-gray-900">
+                      {formatMoney(expense.amount)}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => startExpenseEdit(expense)}
+                      className="rounded-full bg-white p-2 text-emerald-700"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleExpenseDelete(expense._id)}
+                      className="rounded-full bg-white p-2 text-red-600"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
               ))
             ) : (

@@ -162,7 +162,12 @@ export const changePassword = async (req, res, next) => {
     user.mustChangePassword = false;
     await user.save();
 
-    res.json({ success: true, message: "পাসওয়ার্ড পরিবর্তন হয়েছে" });
+    res.json({
+      success: true,
+      message: user.phone
+        ? "পাসওয়ার্ড পরিবর্তন হয়েছে এবং মোবাইলে SMS পাঠানো হয়েছে"
+        : "পাসওয়ার্ড পরিবর্তন হয়েছে",
+    });
   } catch (err) {
     next(err);
   }
@@ -173,6 +178,7 @@ export const forgotPassword = async (req, res, next) => {
   try {
     const { phone, email } = req.body;
     const identifier = phone || email;
+    const requestedVia = phone ? "sms" : "email";
     if (!identifier)
       return res
         .status(400)
@@ -185,7 +191,15 @@ export const forgotPassword = async (req, res, next) => {
         message: "এই তথ্যে কোনো অ্যাকাউন্ট পাওয়া যায়নি",
       });
 
-    if (user.role === "tenant" && user.phone && user.landlordId) {
+    if (user.role === "tenant" && (user.forgotPasswordUsedCount || 0) >= 3) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "ভাড়াটে অ্যাকাউন্টে সর্বোচ্চ ৩ বার পাসওয়ার্ড রিসেট করা যাবে। আরও দরকার হলে সুপার অ্যাডমিনের সাথে যোগাযোগ করুন।",
+      });
+    }
+
+    if (requestedVia === "sms" && user.role === "tenant" && user.phone && user.landlordId) {
       const quota = await hasSmsQuota(user.landlordId, 1);
       if (!quota.allowed)
         return res.status(403).json({
@@ -204,18 +218,26 @@ export const forgotPassword = async (req, res, next) => {
 
     let sent = false;
 
-    // Prefer SMS (BD users prefer this)
-    if (user.phone) {
+    if (requestedVia === "sms") {
+      if (!user.phone) {
+        return res.status(400).json({
+          success: false,
+          message: "এই অ্যাকাউন্টে মোবাইল নম্বর নেই",
+        });
+      }
       const smsResult = await sendOtpSMS({
         landlordId: user.role === "tenant" ? user.landlordId : undefined,
         phone: normalizeBDPhone(user.phone),
         otp,
       });
       sent = smsResult?.success;
-    }
-
-    // Fallback to email
-    if (user.email) {
+    } else {
+      if (!user.email) {
+        return res.status(400).json({
+          success: false,
+          message: "এই অ্যাকাউন্টে ইমেইল নেই",
+        });
+      }
       try {
         const { sendEmail } = await import("../services/email.service.js");
         await sendEmail({
@@ -224,18 +246,28 @@ export const forgotPassword = async (req, res, next) => {
           html: `<p>আপনার OTP: <strong>${otp}</strong>। ৫ মিনিটের মধ্যে ব্যবহার করুন।</p>`,
         });
         sent = true;
-      } catch {}
+      } catch {
+        sent = false;
+      }
     }
 
     if (!sent) {
-      console.error("❌ Could not send OTP via SMS or email");
+      console.error(`❌ Could not send OTP via ${requestedVia}`);
+      return res.status(500).json({
+        success: false,
+        message: requestedVia === "sms" ? "OTP SMS পাঠানো যায়নি" : "OTP ইমেইল পাঠানো যায়নি",
+      });
     }
 
-    // Always respond success to prevent user enumeration
+    if (user.role === "tenant") {
+      user.forgotPasswordUsedCount = (user.forgotPasswordUsedCount || 0) + 1;
+      await user.save({ validateBeforeSave: false });
+    }
+
     res.json({
       success: true,
       message: "OTP পাঠানো হয়েছে",
-      via: user.phone ? "sms" : "email",
+      via: requestedVia,
     });
   } catch (err) {
     next(err);
@@ -286,6 +318,10 @@ export const resetPassword = async (req, res, next) => {
 // ─── Admin: reset any user's password ────────────────────────────────────────
 export const adminResetPassword = async (req, res, next) => {
   try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ success: false, message: "এই কাজের অনুমতি নেই" });
+    }
+
     const { userId, newPassword } = req.body;
     const user = await User.findById(userId);
     if (!user)

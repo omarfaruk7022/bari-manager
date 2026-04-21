@@ -128,7 +128,7 @@ export default function AdminNotificationsPage() {
           <Bell size={19} className="text-emerald-700" />
           <h2 className="text-lg font-black text-gray-950">সকল নোটিফিকেশন</h2>
         </div>
-        <div className="space-y-3">
+        <div className="max-h-[70vh] space-y-3 overflow-y-auto pr-1">
           {notifications.map((notification) => (
             <div key={notification._id} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
               <div className="flex flex-wrap items-start justify-between gap-2">

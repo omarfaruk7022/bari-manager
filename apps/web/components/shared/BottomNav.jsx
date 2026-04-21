@@ -13,6 +13,7 @@ import {
   Megaphone,
   Tags,
   MessageCircleMore,
+  Wallet,
  
 } from "lucide-react";
 
@@ -48,6 +49,8 @@ export const NAV_CONFIG = {
     { href: "/admin/community-chat", icon: MessageCircleMore, label: "চ্যাট" },
     { href: "/admin/landlords", icon: Users, label: "বাড়ীওয়ালা" },
     { href: "/admin/tenants", icon: Users, label: "ভাড়াটে" },
+    { href: "/admin/expenses", icon: Wallet, label: "খরচ" },
+    { href: "/admin/reports", icon: BarChart3, label: "রিপোর্ট" },
     { href: "/admin/plans", icon: Tags, label: "প্ল্যান" },
     { href: "/admin/notifications", icon: Megaphone, label: "নোটিশ" },
     { href: "/admin/subscriptions", icon: Receipt, label: "আবেদন" },
@@ -60,7 +63,7 @@ export function BottomNav({ role = "landlord" }) {
   const items = NAV_CONFIG[role] || NAV_CONFIG.landlord;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 shadow-lg safe-area-pb">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-100 bg-white shadow-lg safe-area-pb lg:hidden">
       <div className="mx-auto flex max-w-5xl items-stretch overflow-x-auto">
         {items.map(({ href, icon: Icon, label }) => {
           const active = path.startsWith(href);

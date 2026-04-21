@@ -4,7 +4,18 @@ import Tenant from "../models/Tenant.model.js";
 import Bill from "../models/Bill.model.js";
 import Payment from "../models/Payment.model.js";
 import LandlordProfile from "../models/LandlordProfile.model.js";
+import Subscription from "../models/Subscription.model.js";
+import SystemExpense from "../models/SystemExpense.model.js";
 import { getPlanCatalog, savePlanCatalog } from "../utils/plans.js";
+
+const normalizeSubscriptionPrice = (subscription, plans = {}) => {
+  const directPrice = Number(subscription?.requestedPlanPrice);
+  if (Number.isFinite(directPrice) && directPrice > 0) return directPrice;
+
+  const planKey = subscription?.requestedPlan || "basic";
+  const fallbackPrice = Number(plans?.[planKey]?.price ?? plans?.basic?.price ?? 0);
+  return Number.isFinite(fallbackPrice) ? fallbackPrice : 0;
+};
 
 // Default config schema (what keys exist and their metadata)
 const CONFIG_SCHEMA = [
@@ -111,6 +122,18 @@ const CONFIG_SCHEMA = [
     key: "GOOGLE_ADS_LAYOUT",
     category: "ads",
     label: "Google Ads Layout (default/in-article/in-feed)",
+    isSecret: false,
+  },
+  {
+    key: "TELEGRAM_BOT_TOKEN",
+    category: "other",
+    label: "Telegram Bot Token",
+    isSecret: true,
+  },
+  {
+    key: "TELEGRAM_CHAT_ID",
+    category: "other",
+    label: "Telegram Chat ID",
     isSecret: false,
   },
   // Security
@@ -221,12 +244,15 @@ export const deleteConfig = async (req, res, next) => {
 // Full system stats for super admin
 export const systemStats = async (req, res, next) => {
   try {
+    const plans = await getPlanCatalog();
     const [
       totalLandlords,
       totalTenants,
       totalBills,
       totalPayments,
       recentUsers,
+      totalSystemExpenses,
+      approvedSubscriptions,
     ] = await Promise.all([
       User.countDocuments({ role: "landlord" }),
       Tenant.countDocuments({ isActive: true }),
@@ -239,7 +265,15 @@ export const systemStats = async (req, res, next) => {
         .sort({ createdAt: -1 })
         .limit(5)
         .select("name email phone role createdAt isActive"),
+      SystemExpense.aggregate([{ $group: { _id: null, total: { $sum: "$amount" } } }]),
+      Subscription.find({ status: "approved" }).select("requestedPlan requestedPlanPrice").lean(),
     ]);
+
+    const totalExpense = totalSystemExpenses[0]?.total || 0;
+    const totalSubscriptionRevenue = approvedSubscriptions.reduce(
+      (sum, item) => sum + normalizeSubscriptionPrice(item, plans),
+      0,
+    );
 
     res.json({
       success: true,
@@ -248,7 +282,218 @@ export const systemStats = async (req, res, next) => {
         totalTenants,
         totalBills,
         totalRevenue: totalPayments[0]?.total || 0,
+        totalSubscriptionRevenue,
+        totalExpense,
+        totalProfit: totalSubscriptionRevenue - totalExpense,
         recentUsers,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const listSystemExpenses = async (req, res, next) => {
+  try {
+    const filter = {};
+    if (req.query.month) filter.month = req.query.month;
+    if (req.query.category) filter.category = req.query.category;
+
+    const expenses = await SystemExpense.find(filter).sort({ date: -1, createdAt: -1 }).limit(200);
+    res.json({ success: true, data: expenses });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const createSystemExpense = async (req, res, next) => {
+  try {
+    const expense = await SystemExpense.create({
+      ...req.body,
+      createdBy: req.user._id,
+    });
+    res.status(201).json({ success: true, message: "সিস্টেম খরচ যুক্ত হয়েছে", data: expense });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateSystemExpense = async (req, res, next) => {
+  try {
+    const expense = await SystemExpense.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+    if (!expense) {
+      return res.status(404).json({ success: false, message: "সিস্টেম খরচ পাওয়া যায়নি" });
+    }
+    res.json({ success: true, message: "সিস্টেম খরচ আপডেট হয়েছে", data: expense });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const removeSystemExpense = async (req, res, next) => {
+  try {
+    const expense = await SystemExpense.findByIdAndDelete(req.params.id);
+    if (!expense) {
+      return res.status(404).json({ success: false, message: "সিস্টেম খরচ পাওয়া যায়নি" });
+    }
+    res.json({ success: true, message: "সিস্টেম খরচ মুছে গেছে" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const subscriptionIncomeReport = async (req, res, next) => {
+  try {
+    const year = Number(req.query.year || new Date().getFullYear());
+    const start = new Date(`${year}-01-01T00:00:00.000Z`);
+    const end = new Date(`${year + 1}-01-01T00:00:00.000Z`);
+    const plans = await getPlanCatalog();
+
+    const approvedSubs = await Subscription.find({
+      status: "approved",
+      reviewedAt: { $gte: start, $lt: end },
+    }).lean();
+
+    const monthlyBreakdown = Array.from({ length: 12 }, (_, index) => {
+      const month = String(index + 1).padStart(2, "0");
+      const key = `${year}-${month}`;
+      const monthSubscriptions = approvedSubs.filter((subscription) => {
+        const stamp = subscription.reviewedAt || subscription.createdAt;
+        return stamp && stamp.toISOString().slice(0, 7) === key;
+      });
+      const revenue = monthSubscriptions.reduce(
+        (sum, subscription) => sum + normalizeSubscriptionPrice(subscription, plans),
+        0,
+      );
+
+      return {
+        month: key,
+        revenue,
+        profit: revenue,
+        subscriptions: monthSubscriptions.length,
+      };
+    });
+
+    const totalRevenue = monthlyBreakdown.reduce((sum, item) => sum + item.revenue, 0);
+
+    res.json({
+      success: true,
+      data: {
+        year,
+        totalRevenue,
+        totalProfit: totalRevenue,
+        totalSubscriptions: approvedSubs.length,
+        monthlyBreakdown,
+        note: "সাবস্ক্রিপশন-সংক্রান্ত খরচ আলাদা করে ট্র্যাক করা হচ্ছে না, তাই profit বর্তমানে revenue-এর সমান দেখানো হচ্ছে।",
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const systemFinanceReport = async (req, res, next) => {
+  try {
+    const currentYear = new Date().getFullYear();
+    const year = Number(req.query.year || currentYear);
+    const month = req.query.month || `${currentYear}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+    const plans = await getPlanCatalog();
+
+    const monthStart = new Date(`${month}-01T00:00:00.000Z`);
+    const monthEnd = new Date(monthStart);
+    monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
+
+    const yearStart = new Date(`${year}-01-01T00:00:00.000Z`);
+    const yearEnd = new Date(`${year + 1}-01-01T00:00:00.000Z`);
+
+    const [allApprovedSubs, allExpenseAgg, monthApprovedSubs, monthExpenseAgg, yearApprovedSubs] =
+      await Promise.all([
+        Subscription.find({ status: "approved" })
+          .select("requestedPlan requestedPlanPrice reviewedAt createdAt")
+          .lean(),
+        SystemExpense.aggregate([{ $group: { _id: null, total: { $sum: "$amount" } } }]),
+        Subscription.find({
+          status: "approved",
+          reviewedAt: { $gte: monthStart, $lt: monthEnd },
+        })
+          .select("requestedPlan requestedPlanPrice reviewedAt createdAt")
+          .lean(),
+        SystemExpense.aggregate([
+          {
+            $match: {
+              date: { $gte: monthStart, $lt: monthEnd },
+            },
+          },
+          { $group: { _id: null, total: { $sum: "$amount" }, count: { $sum: 1 } } },
+        ]),
+        Subscription.find({
+          status: "approved",
+          reviewedAt: { $gte: yearStart, $lt: yearEnd },
+        })
+          .select("requestedPlanPrice reviewedAt createdAt")
+          .lean(),
+      ]);
+
+    const yearExpenses = await SystemExpense.find({
+      date: { $gte: yearStart, $lt: yearEnd },
+    })
+      .select("amount date")
+      .lean();
+
+    const monthlyBreakdown = Array.from({ length: 12 }, (_, index) => {
+      const monthKey = `${year}-${String(index + 1).padStart(2, "0")}`;
+      const revenue = yearApprovedSubs
+        .filter((item) => (item.reviewedAt || item.createdAt)?.toISOString().slice(0, 7) === monthKey)
+        .reduce((sum, item) => sum + normalizeSubscriptionPrice(item, plans), 0);
+      const expenses = yearExpenses
+        .filter((item) => item.date?.toISOString().slice(0, 7) === monthKey)
+        .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+      return {
+        month: monthKey,
+        revenue,
+        expenses,
+        profit: revenue - expenses,
+      };
+    });
+
+    const totalRevenue = allApprovedSubs.reduce(
+      (sum, item) => sum + normalizeSubscriptionPrice(item, plans),
+      0,
+    );
+    const totalExpenses = allExpenseAgg[0]?.total || 0;
+    const monthlyRevenue = monthApprovedSubs.reduce(
+      (sum, item) => sum + normalizeSubscriptionPrice(item, plans),
+      0,
+    );
+    const monthlyExpenses = monthExpenseAgg[0]?.total || 0;
+
+    res.json({
+      success: true,
+      data: {
+        month,
+        year,
+        lifetime: {
+          revenue: totalRevenue,
+          expenses: totalExpenses,
+          profit: totalRevenue - totalExpenses,
+        },
+        monthly: {
+          revenue: monthlyRevenue,
+          expenses: monthlyExpenses,
+          profit: monthlyRevenue - monthlyExpenses,
+          approvedSubscriptions: monthApprovedSubs.length || 0,
+          expenseEntries: monthExpenseAgg[0]?.count || 0,
+        },
+        yearly: {
+          revenue: monthlyBreakdown.reduce((sum, item) => sum + item.revenue, 0),
+          expenses: monthlyBreakdown.reduce((sum, item) => sum + item.expenses, 0),
+          profit: monthlyBreakdown.reduce((sum, item) => sum + item.profit, 0),
+        },
+        monthlyBreakdown,
       },
     });
   } catch (err) {

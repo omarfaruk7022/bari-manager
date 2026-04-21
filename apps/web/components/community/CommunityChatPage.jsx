@@ -279,6 +279,11 @@ export function CommunityChatPage({ role }) {
     [role, selectedLandlordId],
   );
 
+  const { data: me } = useQuery({
+    queryKey: ["auth", "me"],
+    queryFn: () => request({ url: "/auth/me" }),
+  });
+
   const { data: groups = [] } = useQuery({
     queryKey: ["community-chat", "groups"],
     queryFn: () => request({ url: "/community-chat/groups" }),
@@ -652,10 +657,7 @@ export function CommunityChatPage({ role }) {
             <p className="py-10 text-center text-sm text-[#667781]">এখনো কোনো বার্তা নেই</p>
           ) : (
             messages.map((msg) => {
-              const isOutgoing =
-                (role === "landlord" && msg.author?.role === "landlord") ||
-                (role === "tenant" && msg.author?.role === "tenant") ||
-                (role === "admin" && msg.author?.role === "admin");
+              const isOutgoing = String(msg.author?._id || "") === String(me?.user?._id || "");
               const name = msg.author?.name || "অজানা";
               const authorTone =
                 msg.author?.role === "landlord"
