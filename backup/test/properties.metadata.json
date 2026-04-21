@@ -1,1 +1,0 @@
-{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"landlordId":{"$numberInt":"1"}},"name":"landlordId_1","background":true}],"uuid":"23901c4d7e34461d9d2f79f517b397a5","collectionName":"properties","type":"collection"}
