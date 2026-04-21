@@ -19,8 +19,14 @@ export const connectDB = async () => {
   connectionPromise = mongoose
     .connect(uri)
     .then((mongooseInstance) => {
+      const conn = mongooseInstance.connection;
+
       console.log("✅ MongoDB connected");
-      return mongooseInstance.connection;
+      console.log("📍 Host:", conn.host);
+      console.log("📍 DB Name:", conn.name);
+      console.log("📍 Port:", conn.port);
+
+      return conn;
     })
     .catch((err) => {
       connectionPromise = null;

@@ -8,11 +8,13 @@ import { mountRoutes } from "./routes/index.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 
 const app = express();
+app.set('trust proxy', 1)
 
 app.use(helmet());
 
 export const allowedOrigins = [
   "http://localhost:3000",
+"http://109.123.236.110",
   "https://bari-manager.muhammadomarfaruk.com",
   "http://192.168.1.72:3000",
 ];
