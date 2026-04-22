@@ -9,12 +9,25 @@ import SystemExpense from "../models/SystemExpense.model.js";
 import { getPlanCatalog, savePlanCatalog } from "../utils/plans.js";
 
 const normalizeSubscriptionPrice = (subscription, plans = {}) => {
+  const storedApprovedTotalPrice = subscription?.approvedTotalPrice;
+  const approvedTotalPrice =
+    storedApprovedTotalPrice === null || storedApprovedTotalPrice === undefined
+      ? NaN
+      : Number(storedApprovedTotalPrice);
+  if (Number.isFinite(approvedTotalPrice) && approvedTotalPrice >= 0) {
+    return approvedTotalPrice;
+  }
+
+  if (subscription?.approvalCategory === "personal") return 0;
+
   const directPrice = Number(subscription?.requestedPlanPrice);
-  if (Number.isFinite(directPrice) && directPrice > 0) return directPrice;
+  const approvalMonths = Number(subscription?.approvalMonths);
+  const months = Number.isInteger(approvalMonths) && approvalMonths > 0 ? approvalMonths : 1;
+  if (Number.isFinite(directPrice) && directPrice > 0) return directPrice * months;
 
   const planKey = subscription?.requestedPlan || "basic";
   const fallbackPrice = Number(plans?.[planKey]?.price ?? plans?.basic?.price ?? 0);
-  return Number.isFinite(fallbackPrice) ? fallbackPrice : 0;
+  return Number.isFinite(fallbackPrice) ? fallbackPrice * months : 0;
 };
 
 // Default config schema (what keys exist and their metadata)
@@ -266,7 +279,9 @@ export const systemStats = async (req, res, next) => {
         .limit(5)
         .select("name email phone role createdAt isActive"),
       SystemExpense.aggregate([{ $group: { _id: null, total: { $sum: "$amount" } } }]),
-      Subscription.find({ status: "approved" }).select("requestedPlan requestedPlanPrice").lean(),
+      Subscription.find({ status: "approved" })
+        .select("requestedPlan requestedPlanPrice approvalCategory approvalMonths approvedTotalPrice")
+        .lean(),
     ]);
 
     const totalExpense = totalSystemExpenses[0]?.total || 0;
@@ -412,14 +427,14 @@ export const systemFinanceReport = async (req, res, next) => {
     const [allApprovedSubs, allExpenseAgg, monthApprovedSubs, monthExpenseAgg, yearApprovedSubs] =
       await Promise.all([
         Subscription.find({ status: "approved" })
-          .select("requestedPlan requestedPlanPrice reviewedAt createdAt")
+          .select("requestedPlan requestedPlanPrice approvalCategory approvalMonths approvedTotalPrice reviewedAt createdAt")
           .lean(),
         SystemExpense.aggregate([{ $group: { _id: null, total: { $sum: "$amount" } } }]),
         Subscription.find({
           status: "approved",
           reviewedAt: { $gte: monthStart, $lt: monthEnd },
         })
-          .select("requestedPlan requestedPlanPrice reviewedAt createdAt")
+          .select("requestedPlan requestedPlanPrice approvalCategory approvalMonths approvedTotalPrice reviewedAt createdAt")
           .lean(),
         SystemExpense.aggregate([
           {
@@ -433,7 +448,7 @@ export const systemFinanceReport = async (req, res, next) => {
           status: "approved",
           reviewedAt: { $gte: yearStart, $lt: yearEnd },
         })
-          .select("requestedPlanPrice reviewedAt createdAt")
+          .select("requestedPlan requestedPlanPrice approvalCategory approvalMonths approvedTotalPrice reviewedAt createdAt")
           .lean(),
       ]);
 

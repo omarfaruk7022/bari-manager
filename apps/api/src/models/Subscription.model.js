@@ -13,7 +13,15 @@ const subscriptionSchema = new mongoose.Schema(
       enum: ["basic", "standard", "premium", "enterprise"],
       default: "basic",
     },
+    requestedMonths: { type: Number, default: 1, min: 1 },
     requestedPlanPrice: { type: Number, default: 499 },
+    approvalCategory: {
+      type: String,
+      enum: ["personal", "commercial"],
+      default: "commercial",
+    },
+    approvalMonths: { type: Number, default: 1, min: 1 },
+    approvedTotalPrice: { type: Number, default: null, min: 0 },
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],

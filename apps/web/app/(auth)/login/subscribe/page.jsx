@@ -7,6 +7,8 @@ import { CheckCircle, ArrowLeft } from "lucide-react";
 import api from "@/lib/api";
 import { request } from "@/lib/query";
 
+const MONTH_OPTIONS = [1, 3, 6, 12, 24];
+
 const FALLBACK_PLANS = [
   {
     value: "basic",
@@ -53,13 +55,17 @@ export default function SubscribePage() {
     propertyAddress: "",
     totalUnits: 1,
     requestedPlan: "basic",
+    requestedMonths: 1,
   });
+  const [monthMode, setMonthMode] = useState("preset");
   const [success, setSuccess] = useState(false);
   const { data: planCatalog } = useQuery({
     queryKey: ["public", "plans"],
     queryFn: () => request({ url: "/public/plans" }),
   });
   const plans = planList(planCatalog).length ? planList(planCatalog) : FALLBACK_PLANS;
+  const selectedPlan = plans.find((plan) => plan.value === form.requestedPlan) || plans[0];
+  const totalPlanAmount = Number(selectedPlan?.price || 0) * Number(form.requestedMonths || 1);
 
   const subscribeMutation = useMutation({
     mutationFn: async (payload) => api.post("/public/subscribe", payload),
@@ -207,6 +213,74 @@ export default function SubscribePage() {
                     </span>
                   </label>
                 ))}
+              </div>
+            </div>
+
+            <div className="space-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    কত মাসের জন্য আবেদন করবেন
+                  </label>
+                  <p className="mt-1 text-xs text-gray-500">
+                    ১, ৩, ৬, ১২, ২৪ মাস অথবা নিজের মতো কাস্টম মাস বেছে নিন
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMonthMode((current) =>
+                      current === "preset" ? "custom" : "preset",
+                    )
+                  }
+                  className="rounded-full border border-green-200 px-3 py-1 text-xs font-medium text-green-700"
+                >
+                  {monthMode === "preset" ? "কাস্টম মাস" : "প্রিসেট অপশন"}
+                </button>
+              </div>
+
+              {monthMode === "preset" ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {MONTH_OPTIONS.map((month) => (
+                    <button
+                      key={month}
+                      type="button"
+                      onClick={() => setForm({ ...form, requestedMonths: month })}
+                      className={`rounded-xl border px-3 py-3 text-sm font-medium transition-colors ${
+                        Number(form.requestedMonths) === month
+                          ? "border-green-600 bg-green-600 text-white"
+                          : "border-gray-200 bg-white text-gray-700"
+                      }`}
+                    >
+                      {month} মাস
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="যেমন 9"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
+                  value={form.requestedMonths}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      requestedMonths: Math.max(1, Number(e.target.value || 1)),
+                    })
+                  }
+                />
+              )}
+
+              <div className="rounded-xl bg-white px-4 py-3 text-sm text-gray-700">
+                <p>
+                  <strong>মাসিক মূল্য:</strong> ৳
+                  {Number(selectedPlan?.price || 0).toLocaleString("bn-BD")}
+                </p>
+                <p>
+                  <strong>মোট আনুমানিক মূল্য:</strong> ৳
+                  {totalPlanAmount.toLocaleString("bn-BD")}
+                </p>
               </div>
             </div>
 

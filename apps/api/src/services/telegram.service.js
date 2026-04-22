@@ -6,6 +6,8 @@ const getTelegramConfig = async () => {
     SystemConfig.getDecrypted("TELEGRAM_CHAT_ID"),
   ]);
 
+  console.log(tokenFromDb, chatIdFromDb, "tokenFromDb, chatIdFromDb")
+
   return {
     token: tokenFromDb || process.env.TELEGRAM_BOT_TOKEN || "",
     chatId: chatIdFromDb || process.env.TELEGRAM_CHAT_ID || "",
@@ -42,6 +44,7 @@ export const sendTelegramLandlordRequestAlert = async (subscription) => {
     `ফোন: ${subscription.phone || "N/A"}`,
     `ইমেইল: ${subscription.email || "N/A"}`,
     `প্ল্যান: ${subscription.requestedPlan || "basic"}`,
+    `মেয়াদ: ${subscription.requestedMonths || 1} মাস`,
     `বাড়ি: ${subscription.propertyName || "N/A"}`,
   ].join("\n");
 

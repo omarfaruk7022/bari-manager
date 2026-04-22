@@ -37,6 +37,11 @@ const PLAN_PRICES = {
   premium: 1999,
   enterprise: 4999,
 };
+const MONTH_OPTIONS = [1, 3, 6, 12, 24];
+const APPROVAL_TYPE_LABELS = {
+  personal: "Personal",
+  commercial: "Commercial",
+};
 
 const planName = (plans, key) => plans?.[key]?.name || PLAN_LABELS[key || "basic"] || "Basic";
 const planPrice = (plans, key, snapshot) =>
@@ -46,6 +51,8 @@ export default function AdminSubscriptionsPage() {
   const [filter, setFilter] = useState("pending");
   const [acting, setActing] = useState(null);
   const [selectedPlans, setSelectedPlans] = useState({});
+  const [selectedApprovalTypes, setSelectedApprovalTypes] = useState({});
+  const [selectedApprovalMonths, setSelectedApprovalMonths] = useState({});
   const queryClient = useQueryClient();
   const { data: subs = [], isLoading: loading } = useQuery({
     queryKey: ["admin", "subscriptions", filter],
@@ -66,8 +73,12 @@ export default function AdminSubscriptionsPage() {
       queryClient.invalidateQueries({ queryKey: ["admin", "stats"] }),
     ]);
   const approveMutation = useMutation({
-    mutationFn: ({ id, requestedPlan }) =>
-      api.put(`/admin/subscriptions/${id}/approve`, { requestedPlan }),
+    mutationFn: ({ id, requestedPlan, approvalCategory, approvalMonths }) =>
+      api.put(`/admin/subscriptions/${id}/approve`, {
+        requestedPlan,
+        approvalCategory,
+        approvalMonths,
+      }),
     onSuccess: async (res) => {
       toast.success(res.data.message);
       await refresh();
@@ -86,9 +97,12 @@ export default function AdminSubscriptionsPage() {
       toast.error(err.response?.data?.message || "সমস্যা হয়েছে"),
   });
 
-  const approve = async (id, requestedPlan) => {
+  const approve = async (id, requestedPlan, approvalCategory, approvalMonths) => {
     setActing(id + "-approve");
-    approveMutation.mutate({ id, requestedPlan }, { onSettled: () => setActing(null) });
+    approveMutation.mutate(
+      { id, requestedPlan, approvalCategory, approvalMonths },
+      { onSettled: () => setActing(null) },
+    );
   };
 
   const reject = async (id) => {
@@ -139,6 +153,16 @@ export default function AdminSubscriptionsPage() {
         <div className="space-y-3">
           {subs.map((s) => {
             const cfg = STATUS_CONFIG[s.status];
+            const selectedPlanKey = selectedPlans[s._id] || s.requestedPlan || "basic";
+            const currentApprovalType =
+              selectedApprovalTypes[s._id] || s.approvalCategory || "commercial";
+            const currentApprovalMonths =
+              selectedApprovalMonths[s._id] || s.requestedMonths || s.approvalMonths || 1;
+            const currentMonthlyPrice = planPrice(plans, selectedPlanKey, s.requestedPlanPrice);
+            const currentTotal =
+              currentApprovalType === "personal"
+                ? 0
+                : Number(currentMonthlyPrice || 0) * Number(currentApprovalMonths || 1);
             return (
               <div
                 key={s._id}
@@ -181,6 +205,9 @@ export default function AdminSubscriptionsPage() {
                       {planPrice(plans, s.requestedPlan || "basic", s.requestedPlanPrice).toLocaleString("bn-BD")}
                       /মাস
                     </p>
+                    <p>
+                      <strong>চাওয়া মেয়াদ:</strong> {Number(s.requestedMonths || 1).toLocaleString("bn-BD")} মাস
+                    </p>
                   </div>
                 )}
 
@@ -202,7 +229,7 @@ export default function AdminSubscriptionsPage() {
                         অনুমোদনের প্ল্যান
                       </label>
                       <select
-                        value={selectedPlans[s._id] || s.requestedPlan || "basic"}
+                        value={selectedPlanKey}
                         onChange={(e) =>
                           setSelectedPlans((current) => ({
                             ...current,
@@ -219,6 +246,80 @@ export default function AdminSubscriptionsPage() {
                         ))}
                       </select>
                     </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-gray-700">
+                        অনুমোদনের ধরন
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {Object.entries(APPROVAL_TYPE_LABELS).map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() =>
+                              setSelectedApprovalTypes((current) => ({
+                                ...current,
+                                [s._id]: value,
+                              }))
+                            }
+                            className={`rounded-xl border px-3 py-3 text-sm font-medium ${
+                              currentApprovalType === value
+                                ? "border-green-600 bg-green-50 text-green-700"
+                                : "border-gray-200 bg-white text-gray-700"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-gray-700">
+                        অনুমোদনের মেয়াদ
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          value={
+                            MONTH_OPTIONS.includes(Number(currentApprovalMonths))
+                              ? Number(currentApprovalMonths)
+                              : "custom"
+                          }
+                          onChange={(e) => {
+                            if (e.target.value === "custom") return;
+                            setSelectedApprovalMonths((current) => ({
+                              ...current,
+                              [s._id]: Number(e.target.value),
+                            }));
+                          }}
+                          disabled={currentApprovalType === "personal"}
+                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm disabled:bg-gray-100"
+                        >
+                          {MONTH_OPTIONS.map((month) => (
+                            <option key={month} value={month}>
+                              {month} মাস
+                            </option>
+                          ))}
+                          <option value="custom">Custom</option>
+                        </select>
+                        <input
+                          type="number"
+                          min="1"
+                          value={currentApprovalMonths}
+                          onChange={(e) =>
+                            setSelectedApprovalMonths((current) => ({
+                              ...current,
+                              [s._id]: Math.max(1, Number(e.target.value || 1)),
+                            }))
+                          }
+                          disabled={currentApprovalType === "personal"}
+                          className="w-28 rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm disabled:bg-gray-100"
+                        />
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500">
+                        {currentApprovalType === "personal"
+                          ? "Personal approval হলে রিপোর্টে কোনো subscription amount যোগ হবে না।"
+                          : `মোট বিল হবে ৳${currentTotal.toLocaleString("bn-BD")}`}
+                      </p>
+                    </div>
                     <div className="flex gap-3">
                     <button
                       onClick={() => reject(s._id)}
@@ -231,7 +332,12 @@ export default function AdminSubscriptionsPage() {
                     </button>
                     <button
                       onClick={() =>
-                        approve(s._id, selectedPlans[s._id] || s.requestedPlan || "basic")
+                        approve(
+                          s._id,
+                          selectedPlanKey,
+                          currentApprovalType,
+                          currentApprovalType === "personal" ? 1 : Number(currentApprovalMonths || 1),
+                        )
                       }
                       disabled={!!acting}
                       className="flex-1 bg-green-600 text-white py-3 rounded-xl font-medium text-sm disabled:opacity-50"

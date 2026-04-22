@@ -8,6 +8,8 @@ const landlordProfileSchema = new mongoose.Schema({
   totalUnits:       { type: Number, default: 0 },
   subscriptionId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Subscription' },
   plan:             { type: String, enum: ['basic', 'standard', 'premium', 'enterprise'], default: 'basic' },
+  approvalCategory: { type: String, enum: ['personal', 'commercial'], default: 'commercial' },
+  approvalMonths:   { type: Number, default: 1, min: 1 },
   flatLimit:        { type: Number, default: 5 },
   reportMonths:     { type: Number, default: 1 },
   logo:             { type: String },

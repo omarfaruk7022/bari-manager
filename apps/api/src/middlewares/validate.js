@@ -39,6 +39,17 @@ export const subscriptionApplySchema = Joi.object({
   requestedPlan: Joi.string()
     .valid("basic", "standard", "premium", "enterprise")
     .default("basic"),
+  requestedMonths: Joi.number().integer().min(1).default(1),
+});
+
+export const subscriptionApproveSchema = Joi.object({
+  requestedPlan: Joi.string()
+    .valid("basic", "standard", "premium", "enterprise")
+    .optional(),
+  approvalCategory: Joi.string()
+    .valid("personal", "commercial")
+    .default("commercial"),
+  approvalMonths: Joi.number().integer().min(1).optional(),
 });
 
 export const tenantCreateSchema = Joi.object({

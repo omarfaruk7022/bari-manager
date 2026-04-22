@@ -76,6 +76,7 @@ export const apply = async (req, res, next) => {
       email: email || undefined, // clean
       phone: normalizedPhone,
       requestedPlan: req.body.requestedPlan || DEFAULT_PLAN,
+      requestedMonths: Number(req.body.requestedMonths) > 0 ? Number(req.body.requestedMonths) : 1,
       requestedPlanPrice: selectedPlan.price,
     });
 
@@ -161,8 +162,23 @@ export const approve = async (req, res, next) => {
 
     const planKey = req.body.requestedPlan || sub.requestedPlan || DEFAULT_PLAN;
     const selectedPlan = await getPlanConfig(planKey);
+    const approvalCategory =
+      req.body.approvalCategory === "personal" ? "personal" : "commercial";
+    const rawMonths = Number(req.body.approvalMonths);
+    const approvalMonths =
+      approvalCategory === "personal"
+        ? 1
+        : Number.isInteger(rawMonths) && rawMonths > 0
+          ? rawMonths
+          : 1;
+    const approvedTotalPrice =
+      approvalCategory === "personal" ? 0 : Number(selectedPlan.price || 0) * approvalMonths;
+
     sub.requestedPlan = planKey;
     sub.requestedPlanPrice = selectedPlan.price;
+    sub.approvalCategory = approvalCategory;
+    sub.approvalMonths = approvalMonths;
+    sub.approvedTotalPrice = approvedTotalPrice;
 
     await LandlordProfile.create({
       userId: user._id,
@@ -172,6 +188,8 @@ export const approve = async (req, res, next) => {
       totalUnits: sub.totalUnits || 0,
       subscriptionId: sub._id,
       plan: planKey,
+      approvalCategory,
+      approvalMonths,
       smsLimit: selectedPlan.smsLimit,
       flatLimit: selectedPlan.flatLimit,
       reportMonths: selectedPlan.reportMonths,
@@ -203,6 +221,11 @@ export const approve = async (req, res, next) => {
     res.json({
       success: true,
       message: "অনুমোদিত হয়েছে। লগইন তথ্য পাঠানো হয়েছে।",
+      data: {
+        approvalCategory,
+        approvalMonths,
+        approvedTotalPrice,
+      },
     });
   } catch (err) {
     next(err);

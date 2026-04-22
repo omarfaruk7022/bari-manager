@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { validate, subscriptionApproveSchema } from "../middlewares/validate.js";
 import {
   list,
   approve,
@@ -40,7 +41,7 @@ const router = Router();
 
 // Subscriptions
 router.get("/subscriptions", list);
-router.put("/subscriptions/:id/approve", approve);
+router.put("/subscriptions/:id/approve", validate(subscriptionApproveSchema), approve);
 router.put("/subscriptions/:id/reject", reject);
 
 // Dashboard stats

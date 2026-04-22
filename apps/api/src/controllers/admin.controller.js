@@ -99,9 +99,12 @@ export const updateLandlord = async (req, res, next) => {
     );
 
     if (profile?.subscriptionId && req.body.plan) {
+      const approvalMonths =
+        profile.approvalCategory === "personal" ? 1 : Number(profile.approvalMonths || 1);
       await Subscription.findByIdAndUpdate(profile.subscriptionId, {
         requestedPlan: req.body.plan,
         requestedPlanPrice: plan.price,
+        approvedTotalPrice: profile.approvalCategory === "personal" ? 0 : Number(plan.price || 0) * approvalMonths,
       });
     }
 
