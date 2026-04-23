@@ -1,5 +1,5 @@
 {
-  "name": "bari-manager",
+  "name": "bhara-manager",
   "private": true,
   "workspaces": [
     "apps/*",

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Bell, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { request } from "@/lib/query";
+import Image from "next/image";
 
 export function TopBar() {
   const router = useRouter();
@@ -27,17 +28,7 @@ export function TopBar() {
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 lg:px-6">
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-600">
-            <span className="text-white text-sm font-bold">বা</span>
-          </div>
-          <div>
-            <span className="block text-lg font-bold text-gray-900">
-              BariManager
-            </span>
-            <span className="hidden text-xs text-gray-500 lg:block">
-              ভাড়া ব্যবস্থাপনা
-            </span>
-          </div>
+          <Image src="/logo.png" alt="Logo" width={150} height={150} />
         </div>
 
         {/* Right actions */}

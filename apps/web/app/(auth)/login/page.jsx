@@ -7,6 +7,7 @@ import { Eye, EyeOff, LogIn, Phone, Mail, ArrowLeft } from "lucide-react";
 import api from "@/lib/api";
 import { storeAuth } from "@/lib/auth";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -101,12 +102,8 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-white text-3xl font-bold">বা</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">BariManager</h1>
-          <p className="text-gray-500 mt-1">বাড়ি ভাড়া ব্যবস্থাপনা সিস্টেম</p>
+        <div className=" mb-8 flex justify-center">
+          <img src="/logo.png" alt="Logo" width={250} height={250} />
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg p-6">
@@ -302,7 +299,10 @@ export default function LoginPage() {
 
         <p className="text-center text-sm text-gray-500 mt-6">
           নতুন বাড়ীওয়ালা?{" "}
-          <Link href="/subscribe" className="text-green-600 font-medium underline">
+          <Link
+            href="/subscribe"
+            className="text-green-600 font-medium underline"
+          >
             সাবস্ক্রাইব করুন
           </Link>
         </p>

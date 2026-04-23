@@ -6,23 +6,23 @@ A mobile-first SaaS platform for house rental management in Bangladesh.
 
 ## 🏗️ Tech Stack
 
-| Layer      | Technology                          |
-|------------|-------------------------------------|
+| Layer      | Technology                                            |
+| ---------- | ----------------------------------------------------- |
 | Frontend   | Next.js 16 (App Router), JSX, Tailwind CSS, shadcn/ui |
-| Backend    | Node.js, Express.js (MVC)           |
-| Database   | MongoDB + Mongoose                  |
-| Auth       | JWT (stateless)                     |
-| Email      | Nodemailer (SMTP)                   |
-| Payments   | bKash Tokenized Checkout PGW        |
-| Automation | node-cron                           |
-| Monorepo   | Turborepo                           |
+| Backend    | Node.js, Express.js (MVC)                             |
+| Database   | MongoDB + Mongoose                                    |
+| Auth       | JWT (stateless)                                       |
+| Email      | Nodemailer (SMTP)                                     |
+| Payments   | bKash Tokenized Checkout PGW                          |
+| Automation | node-cron                                             |
+| Monorepo   | Turborepo                                             |
 
 ---
 
 ## 📁 Project Structure
 
 ```
-bari-manager/
+bhara-manager/
 ├── apps/
 │   ├── web/          → Next.js 16 frontend
 │   └── api/          → Express.js backend
@@ -38,7 +38,7 @@ bari-manager/
 
 ```bash
 git clone <repo-url>
-cd bari-manager
+cd bhara-manager
 npm install
 ```
 
@@ -50,6 +50,7 @@ cp .env.example apps/web/.env.local
 ```
 
 Edit `apps/api/.env`:
+
 ```env
 MONGODB_URI=mongodb+srv://omarfaruk7022_db_user:4qAHwXmwUmNUkrWm@cluster0.p2w7eao.mongodb.net/?appName=Cluster0
 JWT_SECRET=your_secret_here
@@ -62,6 +63,7 @@ API_URL=http://localhost:5000
 ```
 
 Edit `apps/web/.env.local`:
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:5000/api
 ```
@@ -87,11 +89,11 @@ npm run dev
 
 ## 👥 User Roles
 
-| Role       | Access                                         |
-|------------|------------------------------------------------|
-| **Admin**  | Approve subscriptions, manage all landlords    |
-| **Landlord** | Manage tenants, bills, expenses, reports     |
-| **Tenant** | View bills, make payments, read notices        |
+| Role         | Access                                      |
+| ------------ | ------------------------------------------- |
+| **Admin**    | Approve subscriptions, manage all landlords |
+| **Landlord** | Manage tenants, bills, expenses, reports    |
+| **Tenant**   | View bills, make payments, read notices     |
 
 ---
 
@@ -145,16 +147,17 @@ Tenant redirected to /tenant/payments?status=success
 
 ## ⚙️ Automation (Cron Jobs)
 
-| Job                 | Schedule            | Action                              |
-|---------------------|---------------------|-------------------------------------|
-| Bill Generation     | 1st of every month  | Auto-creates rent bills for all active tenants |
-| Payment Reminder    | Every day at 10 AM  | Sends reminder for overdue bills    |
+| Job              | Schedule           | Action                                         |
+| ---------------- | ------------------ | ---------------------------------------------- |
+| Bill Generation  | 1st of every month | Auto-creates rent bills for all active tenants |
+| Payment Reminder | Every day at 10 AM | Sends reminder for overdue bills               |
 
 ---
 
 ## 📊 API Endpoints Summary
 
 ### Auth
+
 ```
 POST /api/auth/login
 GET  /api/auth/me
@@ -162,11 +165,13 @@ PUT  /api/auth/change-password
 ```
 
 ### Public
+
 ```
 POST /api/public/subscribe
 ```
 
 ### Admin (requires admin JWT)
+
 ```
 GET  /api/admin/stats
 GET  /api/admin/subscriptions
@@ -177,6 +182,7 @@ PUT  /api/admin/landlords/:id/toggle
 ```
 
 ### Landlord (requires landlord JWT)
+
 ```
 GET/POST        /api/landlord/properties
 PUT/DELETE      /api/landlord/properties/:id
@@ -196,6 +202,7 @@ POST            /api/landlord/notices
 ```
 
 ### Tenant (requires tenant JWT)
+
 ```
 GET  /api/tenant/bills
 GET  /api/tenant/bills/:id
@@ -204,12 +211,14 @@ POST /api/tenant/payments/bkash/init
 ```
 
 ### Notifications (any authenticated user)
+
 ```
 GET /api/notifications
 PUT /api/notifications/mark-read
 ```
 
 ### Webhooks (public)
+
 ```
 GET /api/webhooks/bkash/callback
 ```
@@ -218,23 +227,23 @@ GET /api/webhooks/bkash/callback
 
 ## 🌐 Frontend Pages
 
-| Path | Role | Description |
-|------|------|-------------|
-| `/login` | All | Single login page |
-| `/subscribe` | Public | Subscription application |
-| `/admin/dashboard` | Admin | Stats overview |
-| `/admin/subscriptions` | Admin | Approve/reject requests |
-| `/admin/landlords` | Admin | Manage landlords |
-| `/landlord/dashboard` | Landlord | Monthly summary |
-| `/landlord/tenants` | Landlord | List & add tenants |
-| `/landlord/bills` | Landlord | Bills management |
-| `/landlord/expenses` | Landlord | Track expenses |
-| `/landlord/reports` | Landlord | Income/profit charts |
-| `/landlord/notices` | Landlord | Send notices |
-| `/tenant/dashboard` | Tenant | Overview |
-| `/tenant/bills` | Tenant | View bills |
-| `/tenant/payments` | Tenant | Payment history |
-| `/tenant/notices` | Tenant | Notifications |
+| Path                   | Role     | Description              |
+| ---------------------- | -------- | ------------------------ |
+| `/login`               | All      | Single login page        |
+| `/subscribe`           | Public   | Subscription application |
+| `/admin/dashboard`     | Admin    | Stats overview           |
+| `/admin/subscriptions` | Admin    | Approve/reject requests  |
+| `/admin/landlords`     | Admin    | Manage landlords         |
+| `/landlord/dashboard`  | Landlord | Monthly summary          |
+| `/landlord/tenants`    | Landlord | List & add tenants       |
+| `/landlord/bills`      | Landlord | Bills management         |
+| `/landlord/expenses`   | Landlord | Track expenses           |
+| `/landlord/reports`    | Landlord | Income/profit charts     |
+| `/landlord/notices`    | Landlord | Send notices             |
+| `/tenant/dashboard`    | Tenant   | Overview                 |
+| `/tenant/bills`        | Tenant   | View bills               |
+| `/tenant/payments`     | Tenant   | Payment history          |
+| `/tenant/notices`      | Tenant   | Notifications            |
 
 ---
 
