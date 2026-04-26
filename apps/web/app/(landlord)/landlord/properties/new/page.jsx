@@ -9,6 +9,8 @@ import api from "@/lib/api";
 export default function NewPropertyPage() {
   const router = useRouter();
   const [form, setForm] = useState({
+    propertyName: "",
+    propertyAddress: "",
     unitNumber: "",
     floor: "",
     type: "flat",
@@ -31,7 +33,7 @@ export default function NewPropertyPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.unitNumber || !form.monthlyRent) {
+    if (!form.propertyName || !form.unitNumber || !form.monthlyRent) {
       return toast.error("Required fields missing");
     }
 
@@ -43,6 +45,20 @@ export default function NewPropertyPage() {
       <h1 className="text-xl font-bold">Add Property</h1>
 
       <form onSubmit={handleSubmit} className="space-y-3">
+        <input
+          placeholder="Property / Building Name"
+          className="input"
+          value={form.propertyName}
+          onChange={(e) => set("propertyName", e.target.value)}
+        />
+
+        <input
+          placeholder="Property Address"
+          className="input"
+          value={form.propertyAddress}
+          onChange={(e) => set("propertyAddress", e.target.value)}
+        />
+
         <input
           placeholder="Unit Number"
           className="input"

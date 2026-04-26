@@ -8,6 +8,7 @@ export const DEFAULT_PLAN_CONFIG = {
     name: "Basic",
     price: 499,
     smsLimit: 20,
+    propertyLimit: 1,
     flatLimit: 5,
     reportMonths: 1,
     autoBill: false,
@@ -19,6 +20,7 @@ export const DEFAULT_PLAN_CONFIG = {
     name: "Standard",
     price: 999,
     smsLimit: 100,
+    propertyLimit: 3,
     flatLimit: 20,
     reportMonths: 6,
     autoBill: true,
@@ -30,6 +32,7 @@ export const DEFAULT_PLAN_CONFIG = {
     name: "Premium",
     price: 1999,
     smsLimit: 300,
+    propertyLimit: 10,
     flatLimit: 75,
     reportMonths: 12,
     autoBill: true,
@@ -41,6 +44,7 @@ export const DEFAULT_PLAN_CONFIG = {
     name: "Enterprise",
     price: 4999,
     smsLimit: 1000,
+    propertyLimit: 30,
     flatLimit: 300,
     reportMonths: 36,
     autoBill: true,
@@ -62,6 +66,7 @@ export const normalizePlanCatalog = (catalog = {}) => {
       ...incoming,
       price: Number(incoming.price ?? defaults.price),
       smsLimit: Number(incoming.smsLimit ?? defaults.smsLimit),
+      propertyLimit: Number(incoming.propertyLimit ?? defaults.propertyLimit),
       flatLimit: Number(incoming.flatLimit ?? defaults.flatLimit),
       reportMonths: Number(incoming.reportMonths ?? defaults.reportMonths),
       autoBill: Boolean(incoming.autoBill ?? defaults.autoBill),
@@ -114,7 +119,7 @@ export const getLandlordProfileWithPlan = async (landlordId) => {
 
 export const ensureFlatLimit = async (landlordId) => {
   const { profile, plan } = await getLandlordProfileWithPlan(landlordId);
-  const current = await Property.countDocuments({ landlordId });
+  const current = await Property.countDocuments({ landlordId, isUnit: { $ne: false } });
   const limit = profile?.flatLimit || plan.flatLimit;
 
   if (current >= limit) {
@@ -125,6 +130,31 @@ export const ensureFlatLimit = async (landlordId) => {
   }
 
   return { allowed: true, limit, current };
+};
+
+export const ensurePropertyLimit = async (landlordId, propertyName) => {
+  const { profile, plan } = await getLandlordProfileWithPlan(landlordId);
+  const limit = profile?.propertyLimit || plan.propertyLimit || 1;
+  const normalizedName = String(propertyName || "").trim();
+
+  if (!normalizedName) {
+    return { allowed: false, message: "প্রপার্টি/বিল্ডিংয়ের নাম দিন" };
+  }
+
+  const currentNames = await Property.distinct("propertyName", { landlordId });
+  const current = currentNames.filter(Boolean).length;
+  const alreadyExists = currentNames.some(
+    (name) => String(name || "").trim().toLowerCase() === normalizedName.toLowerCase(),
+  );
+
+  if (!alreadyExists && current >= limit) {
+    return {
+      allowed: false,
+      message: `${plan.name} প্ল্যানে সর্বোচ্চ ${limit}টি প্রপার্টি/বিল্ডিং রাখা যাবে`,
+    };
+  }
+
+  return { allowed: true, limit, current, alreadyExists };
 };
 
 export const ensureReportMonthAccess = async (landlordId, month) => {

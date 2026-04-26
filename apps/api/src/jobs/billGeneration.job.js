@@ -1,6 +1,7 @@
 import cron from 'node-cron'
 import Tenant from '../models/Tenant.model.js'
 import Bill from '../models/Bill.model.js'
+import Property from '../models/Property.model.js'
 import LandlordProfile from '../models/LandlordProfile.model.js'
 import { sendBillReadyNotification } from '../services/notification.service.js'
 import { getPlanConfig } from '../utils/plans.js'
@@ -50,7 +51,16 @@ export const runBillGenerationJob = async () => {
       const dueDateDay = dayOfMonth + (profile.billDueDays || 10)
       const dueDate = new Date(year, monthNumber - 1, Math.min(dueDateDay, 28))
 
-      const tenants = await Tenant.find({ landlordId, isActive: true })
+      const tenantFilter = { landlordId, isActive: true }
+      if (profile.autoBillPropertyName) {
+        const properties = await Property.find({
+          landlordId,
+          propertyName: profile.autoBillPropertyName,
+        }).select('_id')
+        tenantFilter.propertyId = { $in: properties.map((property) => property._id) }
+      }
+
+      const tenants = await Tenant.find(tenantFilter)
         .populate('propertyId')
         .populate('userId')
 

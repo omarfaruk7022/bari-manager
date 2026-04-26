@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home,
+  Building2,
   Users,
   Receipt,
   BarChart3,
@@ -14,12 +15,14 @@ import {
   Tags,
   MessageCircleMore,
   Wallet,
+  Database,
  
 } from "lucide-react";
 
 export const NAV_CONFIG = {
   landlord: [
     { href: "/landlord/dashboard", icon: Home, label: "হোম" },
+    { href: "/landlord/properties", icon: Building2, label: "প্রপার্টি" },
     {
       href: "/landlord/community-chat",
       icon: MessageCircleMore,
@@ -48,12 +51,14 @@ export const NAV_CONFIG = {
     { href: "/admin/to-let", icon: Home, label: "To Let" },
     { href: "/admin/community-chat", icon: MessageCircleMore, label: "চ্যাট" },
     { href: "/admin/landlords", icon: Users, label: "বাড়ীওয়ালা" },
+    { href: "/admin/properties", icon: Building2, label: "প্রপার্টি" },
     { href: "/admin/tenants", icon: Users, label: "ভাড়াটে" },
     { href: "/admin/expenses", icon: Wallet, label: "খরচ" },
     { href: "/admin/reports", icon: BarChart3, label: "রিপোর্ট" },
     { href: "/admin/plans", icon: Tags, label: "প্ল্যান" },
     { href: "/admin/notifications", icon: Megaphone, label: "নোটিশ" },
     { href: "/admin/subscriptions", icon: Receipt, label: "আবেদন" },
+    { href: "/admin/control-panel", icon: Database, label: "DB প্যানেল" },
     { href: "/admin/config", icon: ShieldCheck, label: "কনফিগ" },
   ],
 };

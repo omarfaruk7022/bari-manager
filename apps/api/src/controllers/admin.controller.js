@@ -64,11 +64,13 @@ export const updateLandlord = async (req, res, next) => {
     if (req.body.plan) {
       profileUpdate.plan = req.body.plan;
       profileUpdate.smsLimit = req.body.smsLimit ?? plan.smsLimit;
+      profileUpdate.propertyLimit = req.body.propertyLimit ?? plan.propertyLimit;
       profileUpdate.flatLimit = req.body.flatLimit ?? plan.flatLimit;
       profileUpdate.reportMonths = req.body.reportMonths ?? plan.reportMonths;
       profileUpdate.limitBreachNotified = false;
     } else {
       if (req.body.smsLimit !== undefined) profileUpdate.smsLimit = req.body.smsLimit;
+      if (req.body.propertyLimit !== undefined) profileUpdate.propertyLimit = req.body.propertyLimit;
       if (req.body.flatLimit !== undefined) profileUpdate.flatLimit = req.body.flatLimit;
       if (req.body.reportMonths !== undefined) profileUpdate.reportMonths = req.body.reportMonths;
     }
@@ -206,7 +208,7 @@ export const listTenants = async (req, res, next) => {
     if (search) filter.name = { $regex: search, $options: "i" };
 
     const tenants = await Tenant.find(filter)
-      .populate("propertyId", "unitNumber floor monthlyRent")
+      .populate("propertyId", "propertyName propertyAddress unitNumber floor monthlyRent")
       .populate("userId", "email isActive")
       .populate("landlordId", "name email phone")
       .sort({ createdAt: -1 });
@@ -221,7 +223,7 @@ export const getTenant = async (req, res, next) => {
   try {
     const selectedMonth = req.query.month || new Date().toISOString().slice(0, 7);
     const tenant = await Tenant.findById(req.params.id)
-      .populate("propertyId", "unitNumber floor type monthlyRent")
+      .populate("propertyId", "propertyName propertyAddress unitNumber floor type monthlyRent")
       .populate("userId", "name email phone isActive lastLoginAt createdAt")
       .populate("landlordId", "name email phone")
       .lean();
@@ -394,6 +396,7 @@ export const updateTenant = async (req, res, next) => {
         phone: tenant.phone,
         isActive: tenant.isActive,
         landlordId: tenant.landlordId,
+        propertyId: tenant.propertyId,
       });
     }
 

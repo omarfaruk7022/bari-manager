@@ -318,6 +318,19 @@ export function CommunityChatPage({ role }) {
   const groupInfo = data?.groupInfo;
   const hasManagement = role === "landlord" || role === "admin";
   const communityError = error?.response?.data?.message;
+  const propertyWiseMembers = useMemo(() => {
+    const groups = new Map();
+    members.forEach((member) => {
+      const property = member.tenant?.propertyId;
+      const name =
+        property?.propertyName && property?.unitNumber
+          ? `${property.propertyName} · ${property.unitNumber}`
+          : property?.propertyName || "প্রপার্টি দেওয়া নেই";
+      if (!groups.has(name)) groups.set(name, { name, members: [] });
+      groups.get(name).members.push(member);
+    });
+    return Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [members]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -490,23 +503,31 @@ export function CommunityChatPage({ role }) {
       {members.length === 0 ? (
         <p className="py-8 text-center text-sm text-[#667781]">কোনো সদস্য নেই</p>
       ) : (
-        members.map((member) => {
-          const name = member.user?.name || member.tenant?.name || "ভাড়াটিয়া";
-          const contact = member.user?.phone || member.user?.email || "";
-          const { isBanned, isMuted } = member.moderation || {};
-          return (
-            <MemberCard
-              key={member._id}
-              member={member}
-              name={name}
-              contact={contact}
-              isBanned={isBanned}
-              isMuted={isMuted}
-              moderationMutation={moderationMutation}
-              landlordId={selectedLandlordId}
-            />
-          );
-        })
+        propertyWiseMembers.map((group) => (
+          <section key={group.name} className="mb-3">
+            <div className="mb-2 px-1">
+              <p className="text-xs font-semibold text-[#111b21]">{group.name}</p>
+              <p className="text-[10px] text-[#667781]">{group.members.length} সদস্য</p>
+            </div>
+            {group.members.map((member) => {
+              const name = member.user?.name || member.tenant?.name || "ভাড়াটিয়া";
+              const contact = member.user?.phone || member.user?.email || "";
+              const { isBanned, isMuted } = member.moderation || {};
+              return (
+                <MemberCard
+                  key={member._id}
+                  member={member}
+                  name={name}
+                  contact={contact}
+                  isBanned={isBanned}
+                  isMuted={isMuted}
+                  moderationMutation={moderationMutation}
+                  landlordId={selectedLandlordId}
+                />
+              );
+            })}
+          </section>
+        ))
       )}
     </>
   );

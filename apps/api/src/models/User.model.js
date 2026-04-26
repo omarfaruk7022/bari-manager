@@ -23,6 +23,11 @@ const userSchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
+    propertyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Property",
+      default: null,
+    },
     isActive: { type: Boolean, default: true },
     mustChangePassword: { type: Boolean, default: false },
     lastLoginAt: { type: Date },
@@ -47,7 +52,7 @@ userSchema.methods.comparePassword = function (plain) {
 };
 
 // Support login by email or phone number
-userSchema.statics.findByLogin = function (identifier) {
+userSchema.statics.findByLogin = function (identifier, extraFilter = {}) {
   const cleaned = (identifier || "").replace(/\D/g, "");
 
   const possiblePhones = [
@@ -61,6 +66,7 @@ userSchema.statics.findByLogin = function (identifier) {
       { email: identifier.toLowerCase() },
       { phone: { $in: possiblePhones } },
     ],
+    ...extraFilter,
   }).select("+password");
 };
 

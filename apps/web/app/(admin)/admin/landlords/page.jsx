@@ -161,7 +161,7 @@ export default function AdminLandlordsPage() {
                     SMS লিমিট: {l.profile?.smsUsed || 0}/{l.profile?.smsLimit || 0}
                   </p>
                   <p className="text-xs text-emerald-700 mt-1 font-medium">
-                    প্ল্যান: {planOptions.find((p) => p.value === l.profile?.plan)?.label || "Basic"} · ৳{(planOptions.find((p) => p.value === l.profile?.plan)?.price || 499).toLocaleString("bn-BD")}/মাস · ফ্ল্যাট {l.unitCount || 0}/{l.profile?.flatLimit || 5} · রিপোর্ট {l.profile?.reportMonths || 1} মাস
+                    প্ল্যান: {planOptions.find((p) => p.value === l.profile?.plan)?.label || "Basic"} · ৳{(planOptions.find((p) => p.value === l.profile?.plan)?.price || 499).toLocaleString("bn-BD")}/মাস · প্রপার্টি {l.profile?.propertyLimit || 1} · ইউনিট {l.unitCount || 0}/{l.profile?.flatLimit || 5} · রিপোর্ট {l.profile?.reportMonths || 1} মাস
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
                     যোগদান: {new Date(l.createdAt).toLocaleDateString("bn-BD")}

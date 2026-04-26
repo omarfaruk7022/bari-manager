@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Eye, EyeOff, Lock, Save } from "lucide-react";
@@ -14,15 +14,28 @@ export default function LandlordSettingsPage() {
     queryKey: ["landlord", "profile"],
     queryFn: () => request({ url: "/landlord/profile" }).catch(() => null),
   });
+  const { data: properties = [] } = useQuery({
+    queryKey: ["landlord", "properties", "all"],
+    queryFn: () => request({ url: "/landlord/properties" }),
+  });
 
   const [billDay, setBillDay] = useState(profile?.billGenerationDay || 1);
   const [dueDays, setDueDays] = useState(profile?.billDueDays || 10);
-  const autoBillAllowed = profile?.plan !== "basic";
+  const [autoBillPropertyName, setAutoBillPropertyName] = useState(profile?.autoBillPropertyName || "");
+  const autoBillAllowed = Boolean(profile && profile.plan !== "basic");
+  const propertyOptions = useMemo(() => {
+    const names = new Set();
+    properties.forEach((property) => {
+      if (property.propertyName) names.add(property.propertyName);
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [properties]);
 
   useEffect(() => {
     if (!profile) return;
     setBillDay(profile.billGenerationDay || 1);
     setDueDays(profile.billDueDays || 10);
+    setAutoBillPropertyName(profile.autoBillPropertyName || "");
   }, [profile]);
 
   const passwordMutation = useMutation({
@@ -130,8 +143,24 @@ export default function LandlordSettingsPage() {
               onChange={(e) => setDueDays(Number(e.target.value))}
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              অটো বিল কোন প্রপার্টির জন্য
+            </label>
+            <select
+              disabled={!autoBillAllowed}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-400"
+              value={autoBillPropertyName}
+              onChange={(e) => setAutoBillPropertyName(e.target.value)}
+            >
+              <option value="">সব প্রপার্টি</option>
+              {propertyOptions.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
           <button
-            onClick={() => billSettingsMutation.mutate({ billGenerationDay: billDay, billDueDays: dueDays })}
+            onClick={() => billSettingsMutation.mutate({ billGenerationDay: billDay, billDueDays: dueDays, autoBillPropertyName })}
             disabled={billSettingsMutation.isPending || !autoBillAllowed}
             className="flex items-center gap-2 bg-green-600 text-white px-5 py-3 rounded-xl font-medium disabled:bg-green-300"
           >

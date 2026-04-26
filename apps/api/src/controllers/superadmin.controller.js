@@ -578,10 +578,10 @@ export const updatePlans = async (req, res, next) => {
       if (!plan || typeof plan !== "object") {
         return res.status(422).json({ success: false, message: `${key} প্ল্যান সঠিক নয়` });
       }
-      if (!plan.name || Number(plan.price) < 0 || Number(plan.smsLimit) < 0 || Number(plan.flatLimit) < 1 || Number(plan.reportMonths) < 1) {
+      if (!plan.name || Number(plan.price) < 0 || Number(plan.smsLimit) < 0 || Number(plan.propertyLimit) < 1 || Number(plan.flatLimit) < 1 || Number(plan.reportMonths) < 1) {
         return res.status(422).json({
           success: false,
-          message: `${plan.name || key} প্ল্যানে নাম, মূল্য, SMS, ফ্ল্যাট ও রিপোর্ট সীমা সঠিক দিন`,
+          message: `${plan.name || key} প্ল্যানে নাম, মূল্য, SMS, প্রপার্টি, ফ্ল্যাট ও রিপোর্ট সীমা সঠিক দিন`,
         });
       }
     }
@@ -593,6 +593,7 @@ export const updatePlans = async (req, res, next) => {
           { plan: planKey },
           {
             smsLimit: plan.smsLimit,
+            propertyLimit: plan.propertyLimit,
             flatLimit: plan.flatLimit,
             reportMonths: plan.reportMonths,
             limitBreachNotified: false,

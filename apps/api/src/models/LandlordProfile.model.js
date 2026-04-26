@@ -10,12 +10,14 @@ const landlordProfileSchema = new mongoose.Schema({
   plan:             { type: String, enum: ['basic', 'standard', 'premium', 'enterprise'], default: 'basic' },
   approvalCategory: { type: String, enum: ['personal', 'commercial'], default: 'commercial' },
   approvalMonths:   { type: Number, default: 1, min: 1 },
+  propertyLimit:    { type: Number, default: 1 },
   flatLimit:        { type: Number, default: 5 },
   reportMonths:     { type: Number, default: 1 },
   logo:             { type: String },
   // Auto bill generation config
   billGenerationDay: { type: Number, default: 1, min: 1, max: 28 }, // day of month
   billDueDays:      { type: Number, default: 10 }, // due N days after generation
+  autoBillPropertyName: { type: String, trim: true, default: "" }, // blank means all properties
   // SMS Limits Support
   smsLimit:         { type: Number, default: 20 },
   smsUsed:          { type: Number, default: 0 },

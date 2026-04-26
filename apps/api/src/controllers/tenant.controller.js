@@ -60,14 +60,15 @@ async function sendCredentials({ landlordId, name, phone, email, password }) {
 
 export const list = async (req, res, next) => {
   try {
-    const { active, page = 1, limit = 20, search } = req.query;
+    const { active, page = 1, limit = 20, search, propertyId } = req.query;
     const filter = withScopedFilter(req, {}, { allowAllForAdmin: true });
     if (active !== undefined) filter.isActive = active === "true";
     if (search) filter.name = { $regex: search, $options: "i" };
+    if (propertyId) filter.propertyId = propertyId;
 
     const total = await Tenant.countDocuments(filter);
     const tenants = await Tenant.find(filter)
-      .populate("propertyId", "unitNumber floor monthlyRent")
+      .populate("propertyId", "propertyName propertyAddress unitNumber floor monthlyRent")
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(Number(limit));
@@ -137,7 +138,11 @@ export const create = async (req, res, next) => {
 
       // 🔹 check existing user by normalized phone
       const existingUser = normalizedPhone
-        ? await User.findOne({ phone: normalizedPhone, role: "tenant" })
+        ? await User.findOne({
+            phone: normalizedPhone,
+            role: "tenant",
+            propertyId: property._id,
+          })
         : null;
 
       if (!existingUser) {
@@ -148,6 +153,7 @@ export const create = async (req, res, next) => {
           password: tempPassword,
           role: "tenant",
           landlordId,
+          propertyId: property._id,
           mustChangePassword: true,
         });
 
@@ -164,6 +170,10 @@ export const create = async (req, res, next) => {
         });
       } else {
         tenant.userId = existingUser._id;
+        await User.findByIdAndUpdate(existingUser._id, {
+          landlordId,
+          propertyId: property._id,
+        });
         await tenant.save();
       }
     }
@@ -217,6 +227,7 @@ export const update = async (req, res, next) => {
           password: tempPassword,
           role: "tenant",
           landlordId: tenant.landlordId,
+          propertyId: tenant.propertyId,
           mustChangePassword: true,
         });
 
@@ -224,7 +235,7 @@ export const update = async (req, res, next) => {
         await tenant.save();
 
         await sendCredentials({
-          landlordId,
+          landlordId: tenant.landlordId,
           name: tenant.name,
           phone: normalizedPhone || tenant.phone,
           email: email,
@@ -237,6 +248,8 @@ export const update = async (req, res, next) => {
         if (name) updateFields.name = name;
         if (email) updateFields.email = email;
         if (normalizedPhone) updateFields.phone = normalizedPhone;
+        updateFields.propertyId = tenant.propertyId;
+        updateFields.landlordId = tenant.landlordId;
 
         await User.findByIdAndUpdate(tenant.userId, updateFields);
       }

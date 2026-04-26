@@ -28,8 +28,16 @@ export const list = async (req, res, next) => {
       const tenant = await Tenant.findOne({
         $or: [
           { userId: req.user._id },
-          { phone: normalizeBDPhone(req.user.phone), landlordId: req.user.landlordId },
-          { email: req.user.email, landlordId: req.user.landlordId },
+          {
+            phone: normalizeBDPhone(req.user.phone),
+            landlordId: req.user.landlordId,
+            propertyId: req.user.propertyId,
+          },
+          {
+            email: req.user.email,
+            landlordId: req.user.landlordId,
+            propertyId: req.user.propertyId,
+          },
         ].filter((item) => Object.values(item).every(Boolean)),
       })
       if (tenant) filter.tenantId = tenant._id
@@ -87,8 +95,16 @@ export const initBkash = async (req, res, next) => {
     const tenant = await Tenant.findOne({
       $or: [
         { userId: req.user._id },
-        { phone: normalizeBDPhone(req.user.phone), landlordId: req.user.landlordId },
-        { email: req.user.email, landlordId: req.user.landlordId },
+        {
+          phone: normalizeBDPhone(req.user.phone),
+          landlordId: req.user.landlordId,
+          propertyId: req.user.propertyId,
+        },
+        {
+          email: req.user.email,
+          landlordId: req.user.landlordId,
+          propertyId: req.user.propertyId,
+        },
       ].filter((item) => Object.values(item).every(Boolean)),
     })
     if (!tenant) return res.status(404).json({ success: false, message: 'ভাড়াটে পাওয়া যায়নি' })

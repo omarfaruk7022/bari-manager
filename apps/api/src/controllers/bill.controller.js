@@ -7,7 +7,7 @@ import { normalizeBDPhone } from "./tenant.controller.js";
 
 export const list = async (req, res, next) => {
   try {
-    const { month, tenantId, status, page = 1, limit = 20 } = req.query;
+    const { month, tenantId, status, propertyId, propertyName, page = 1, limit = 20 } = req.query;
     const filter = {};
     const landlordId = getScopedLandlordId(req, { allowAllForAdmin: true });
     if (landlordId) filter.landlordId = landlordId;
@@ -18,8 +18,13 @@ export const list = async (req, res, next) => {
           {
             phone: normalizeBDPhone(req.user.phone),
             landlordId: req.user.landlordId,
+            propertyId: req.user.propertyId,
           },
-          { email: req.user.email, landlordId: req.user.landlordId },
+          {
+            email: req.user.email,
+            landlordId: req.user.landlordId,
+            propertyId: req.user.propertyId,
+          },
         ].filter((item) => Object.values(item).every(Boolean)),
       });
       if (!tenant) return res.json({ success: true, data: [], total: 0 });
@@ -28,11 +33,16 @@ export const list = async (req, res, next) => {
     if (month) filter.month = month;
     if (tenantId) filter.tenantId = tenantId;
     if (status) filter.status = status;
+    if (propertyId) filter.propertyId = propertyId;
+    if (propertyName && landlordId) {
+      const properties = await Property.find({ landlordId, propertyName }).select("_id");
+      filter.propertyId = { $in: properties.map((property) => property._id) };
+    }
 
     const total = await Bill.countDocuments(filter);
     const bills = await Bill.find(filter)
       .populate("tenantId", "name phone")
-      .populate("propertyId", "unitNumber floor")
+      .populate("propertyId", "propertyName unitNumber floor")
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(Number(limit));
@@ -61,8 +71,13 @@ export const getOne = async (req, res, next) => {
           {
             phone: normalizeBDPhone(req.user.phone),
             landlordId: req.user.landlordId,
+            propertyId: req.user.propertyId,
           },
-          { email: req.user.email, landlordId: req.user.landlordId },
+          {
+            email: req.user.email,
+            landlordId: req.user.landlordId,
+            propertyId: req.user.propertyId,
+          },
         ].filter((item) => Object.values(item).every(Boolean)),
       });
       if (
@@ -180,7 +195,7 @@ export const remove = async (req, res, next) => {
 // Manual bulk generate — includes utility defaults per tenant
 export const bulkGenerate = async (req, res, next) => {
   try {
-    const { month, year } = req.body;
+    const { month, year, propertyId, propertyName } = req.body;
     if (!month || !year)
       return res
         .status(400)
@@ -203,7 +218,20 @@ export const bulkGenerate = async (req, res, next) => {
       Math.min(new Date(yr, mo - 1, 1).getDate() + dueDays, 28),
     );
 
-    const tenants = await Tenant.find({ landlordId, isActive: true })
+    const tenantFilter = { landlordId, isActive: true };
+    if (propertyId) {
+      const property = await Property.findOne({ _id: propertyId, landlordId }).select("_id");
+      if (!property)
+        return res
+          .status(404)
+          .json({ success: false, message: "প্রপার্টি/ইউনিট পাওয়া যায়নি" });
+      tenantFilter.propertyId = property._id;
+    } else if (propertyName) {
+      const properties = await Property.find({ landlordId, propertyName }).select("_id");
+      tenantFilter.propertyId = { $in: properties.map((property) => property._id) };
+    }
+
+    const tenants = await Tenant.find(tenantFilter)
       .populate("propertyId")
       .populate("userId");
     let created = 0,
@@ -304,8 +332,13 @@ export const getInvoice = async (req, res, next) => {
           {
             phone: normalizeBDPhone(req.user.phone),
             landlordId: req.user.landlordId,
+            propertyId: req.user.propertyId,
           },
-          { email: req.user.email, landlordId: req.user.landlordId },
+          {
+            email: req.user.email,
+            landlordId: req.user.landlordId,
+            propertyId: req.user.propertyId,
+          },
         ].filter((item) => Object.values(item).every(Boolean)),
       });
       if (!tenant || String(bill.tenantId?._id) !== String(tenant._id))

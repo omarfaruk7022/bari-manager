@@ -16,6 +16,8 @@ export default function LoginPage() {
   const [form, setForm] = useState({ identifier: "", password: "" });
   const [showPass, setShow] = useState(false);
   const [forgotId, setForgotId] = useState("");
+  const [forgotPropertyName, setForgotPropertyName] = useState("");
+  const [forgotUnitNumber, setForgotUnitNumber] = useState("");
   const [otp, setOtp] = useState("");
   const [newPass, setNewPass] = useState("");
   const [otpVia, setOtpVia] = useState("sms");
@@ -83,7 +85,11 @@ export default function LoginPage() {
     e.preventDefault();
     if (!forgotId) return toast.error("মোবাইল নম্বর বা ইমেইল দিন");
     const isPhone = /^[0-9+]/.test(forgotId);
-    forgotMutation.mutate(isPhone ? { phone: forgotId } : { email: forgotId });
+    forgotMutation.mutate(
+      isPhone
+        ? { phone: forgotId, propertyName: forgotPropertyName, unitNumber: forgotUnitNumber }
+        : { email: forgotId },
+    );
   };
 
   const handleReset = (e) => {
@@ -94,7 +100,7 @@ export default function LoginPage() {
     const isPhone = /^[0-9+]/.test(forgotId);
     resetMutation.mutate(
       isPhone
-        ? { phone: forgotId, otp, newPassword: newPass }
+        ? { phone: forgotId, propertyName: forgotPropertyName, unitNumber: forgotUnitNumber, otp, newPassword: newPass }
         : { email: forgotId, otp, newPassword: newPass },
     );
   };
@@ -222,6 +228,22 @@ export default function LoginPage() {
                   value={forgotId}
                   onChange={(e) => setForgotId(e.target.value)}
                 />
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    placeholder="টেন্যান্ট হলে প্রপার্টির নাম"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
+                    value={forgotPropertyName}
+                    onChange={(e) => setForgotPropertyName(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    placeholder="ইউনিট নম্বর"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
+                    value={forgotUnitNumber}
+                    onChange={(e) => setForgotUnitNumber(e.target.value)}
+                  />
+                </div>
                 <button
                   type="submit"
                   disabled={forgotMutation.isPending}

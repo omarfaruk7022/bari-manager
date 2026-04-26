@@ -181,6 +181,14 @@ GET  /api/admin/landlords
 PUT  /api/admin/landlords/:id/toggle
 ```
 
+### AdminJS
+
+```
+GET  /adminjs
+```
+
+AdminJS uses its own login form and accepts active BariManager users with role `admin`.
+
 ### Landlord (requires landlord JWT)
 
 ```
@@ -218,6 +226,29 @@ PUT /api/notifications/mark-read
 ```
 
 ### Webhooks (public)
+
+## AdminJS Setup
+
+Add these packages in the API workspace:
+
+```bash
+npm install -w apps/api adminjs @adminjs/express @adminjs/mongoose express-session connect-mongo
+```
+
+AdminJS is mounted from the API server at `/adminjs`, so it will manage the same database used by your backend connection:
+
+```env
+MONGODB_URI=mongodb://username:password@your-vps-ip:27017/bari_manager?authSource=admin
+```
+
+If MongoDB is on a VPS, make sure:
+
+- The VPS firewall allows access from the machine running `apps/api`
+- MongoDB `bindIp` is configured to allow that connection
+- The MongoDB user has permission on the target database
+- `ADMINJS_COOKIE_SECRET` is set in `apps/api/.env` for production
+
+From the web app, open `/admin/control-panel` to launch AdminJS.
 
 ```
 GET /api/webhooks/bkash/callback

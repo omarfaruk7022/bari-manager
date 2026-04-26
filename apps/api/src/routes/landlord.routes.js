@@ -6,7 +6,7 @@ import * as E  from '../controllers/expense.controller.js'
 import * as R  from '../controllers/report.controller.js'
 import * as N  from '../controllers/notification.controller.js'
 import * as PM from '../controllers/payment.controller.js'
-import { validate, tenantCreateSchema, billCreateSchema, propertyCreateSchema, expenseCreateSchema, cashPaymentSchema } from '../middlewares/validate.js'
+import { validate, tenantCreateSchema, billCreateSchema, propertyCreateSchema, propertyGroupCreateSchema, expenseCreateSchema, cashPaymentSchema } from '../middlewares/validate.js'
 import LandlordProfile from '../models/LandlordProfile.model.js'
 import { getPlanConfig } from '../utils/plans.js'
 
@@ -14,6 +14,7 @@ const router = Router()
 
 // Properties / Units
 router.get('/properties',            P.list)
+router.post('/properties/groups',    validate(propertyGroupCreateSchema), P.createGroup)
 router.post('/properties',           validate(propertyCreateSchema), P.create)
 router.put('/properties/:id',        validate(propertyCreateSchema), P.update)
 router.delete('/properties/:id',     P.remove)
@@ -62,7 +63,7 @@ router.get('/profile', async (req, res, next) => {
 
 router.put('/bill-settings', async (req, res, next) => {
   try {
-    const { billGenerationDay, billDueDays } = req.body
+    const { billGenerationDay, billDueDays, autoBillPropertyName = "" } = req.body
     const current = await LandlordProfile.findOne({ userId: req.user._id })
     if (!current) return res.status(404).json({ success: false, message: 'প্রোফাইল পাওয়া যায়নি' })
     const plan = await getPlanConfig(current.plan)
@@ -71,7 +72,7 @@ router.put('/bill-settings', async (req, res, next) => {
     }
     const profile = await LandlordProfile.findOneAndUpdate(
       { userId: req.user._id },
-      { billGenerationDay, billDueDays },
+      { billGenerationDay, billDueDays, autoBillPropertyName },
       { new: true }
     )
     if (!profile) return res.status(404).json({ success: false, message: 'প্রোফাইল পাওয়া যায়নি' })

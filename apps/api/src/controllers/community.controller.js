@@ -115,7 +115,14 @@ export const getCommunityState = async (req, res, next) => {
     if (req.user.role === "landlord" || req.user.role === "admin") {
       const members = await CommunityChatMember.find({ landlordId: access.landlordId, role: "tenant" })
         .populate("userId", "name phone email")
-        .populate("tenantId", "propertyId name isActive");
+        .populate({
+          path: "tenantId",
+          select: "propertyId name isActive",
+          populate: {
+            path: "propertyId",
+            select: "propertyName unitNumber floor",
+          },
+        });
 
       response.data.members = members.map((member) => ({
         _id: member._id,

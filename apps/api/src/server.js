@@ -1,6 +1,7 @@
 import "./config/env.js";
 import http from "http";
-import app, { allowedOrigins } from "./app.js";
+import app, { allowedOrigins, mountApiMiddleware } from "./app.js";
+import { mountAdminJs } from "./adminjs/index.js";
 import { connectDB } from "./config/db.js";
 import { initIO } from "./socket/index.js";
 import {
@@ -29,6 +30,8 @@ async function bootstrap() {
   try {
     await connectDB();
     await loadDbConfigs();
+    await mountAdminJs(app);
+    mountApiMiddleware(app);
     startBillGenerationJob();
     await runBillGenerationJob();
     server.listen(process.env.API_PORT || 5000, () =>

@@ -14,25 +14,25 @@ const FALLBACK_PLANS = [
     value: "basic",
     name: "Basic",
     price: 499,
-    desc: "৫ ফ্ল্যাট, ২০ SMS, ১ মাস রিপোর্ট",
+    desc: "১ প্রপার্টি, ৫ ইউনিট, ২০ SMS, ১ মাস রিপোর্ট",
   },
   {
     value: "standard",
     name: "Standard",
     price: 999,
-    desc: "২০ ফ্ল্যাট, ১০০ SMS, ৬ মাস রিপোর্ট, অটো বিল",
+    desc: "৩ প্রপার্টি, ২০ ইউনিট, ১০০ SMS, ৬ মাস রিপোর্ট, অটো বিল",
   },
   {
     value: "premium",
     name: "Premium",
     price: 1999,
-    desc: "৭৫ ফ্ল্যাট, ৩০০ SMS, ১২ মাস রিপোর্ট, অটো বিল",
+    desc: "১০ প্রপার্টি, ৭৫ ইউনিট, ৩০০ SMS, ১২ মাস রিপোর্ট, অটো বিল",
   },
   {
     value: "enterprise",
     name: "Enterprise",
     price: 4999,
-    desc: "৩০০ ফ্ল্যাট, ১০০০ SMS, ৩৬ মাস রিপোর্ট, অটো বিল",
+    desc: "৩০ প্রপার্টি, ৩০০ ইউনিট, ১০০০ SMS, ৩৬ মাস রিপোর্ট, অটো বিল",
   },
 ];
 
@@ -42,7 +42,7 @@ const planList = (plans) =>
     ...plan,
     desc: Array.isArray(plan.features)
       ? plan.features.join(", ")
-      : `${plan.flatLimit} ফ্ল্যাট, ${plan.smsLimit} SMS, ${plan.reportMonths} মাস রিপোর্ট${plan.autoBill ? ", অটো বিল" : ""}${plan.googleAds ? ", Google Ads" : ""}`,
+      : `${plan.propertyLimit || 1} প্রপার্টি, ${plan.flatLimit} ইউনিট, ${plan.smsLimit} SMS, ${plan.reportMonths} মাস রিপোর্ট${plan.autoBill ? ", অটো বিল" : ""}${plan.googleAds ? ", Google Ads" : ""}`,
   }));
 
 export default function SubscribePage() {

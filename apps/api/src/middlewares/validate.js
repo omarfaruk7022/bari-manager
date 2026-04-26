@@ -25,9 +25,12 @@ export const validate = (schema) => (req, res, next) => {
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
 export const loginSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: Joi.string().email().optional(),
+  phone: Joi.string().min(10).optional(),
+  propertyName: Joi.string().allow(""),
+  unitNumber: Joi.string().allow(""),
   password: Joi.string().min(6).required(),
-});
+}).or("email", "phone");
 
 export const subscriptionApplySchema = Joi.object({
   applicantName: Joi.string().min(2).required(),
@@ -108,10 +111,20 @@ export const billCreateSchema = Joi.object({
 });
 
 export const propertyCreateSchema = Joi.object({
+  landlordId: Joi.string().optional(),
+  propertyName: Joi.string().min(2).required(),
+  propertyAddress: Joi.string().allow(""),
   unitNumber: Joi.string().required(),
   floor: Joi.string().allow(""),
   type: Joi.string().valid("flat", "room", "shop", "office").default("flat"),
   monthlyRent: Joi.number().min(0).required(),
+  description: Joi.string().allow(""),
+});
+
+export const propertyGroupCreateSchema = Joi.object({
+  landlordId: Joi.string().optional(),
+  propertyName: Joi.string().min(2).required(),
+  propertyAddress: Joi.string().allow(""),
   description: Joi.string().allow(""),
 });
 

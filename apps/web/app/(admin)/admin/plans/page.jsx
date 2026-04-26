@@ -64,7 +64,7 @@ export default function AdminPlansPage() {
             <div>
               <h1 className="text-2xl font-black text-gray-950">সাবস্ক্রিপশন প্ল্যান</h1>
               <p className="text-sm text-gray-500">
-                মূল্য, SMS, ফ্ল্যাট, রিপোর্ট, অটো বিল, চ্যাট এবং Google Ads অ্যাক্সেস পরিবর্তন করুন।
+                মূল্য, SMS, প্রপার্টি, ফ্ল্যাট, রিপোর্ট, অটো বিল, চ্যাট এবং Google Ads অ্যাক্সেস পরিবর্তন করুন।
               </p>
             </div>
           </div>
@@ -149,6 +149,11 @@ export default function AdminPlansPage() {
                     onChange={(value) => updatePlan(key, "smsLimit", value)}
                   />
                   <NumberField
+                    label="প্রপার্টি / বিল্ডিং লিমিট"
+                    value={plan.propertyLimit}
+                    onChange={(value) => updatePlan(key, "propertyLimit", value)}
+                  />
+                  <NumberField
                     label="ফ্ল্যাট / ইউনিট লিমিট"
                     value={plan.flatLimit}
                     onChange={(value) => updatePlan(key, "flatLimit", value)}
@@ -185,6 +190,7 @@ export default function AdminPlansPage() {
                 <div className="mt-4 rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
                   <span className="font-bold text-gray-900">প্রিভিউ:</span>{" "}
                   ৳{Number(plan.price || 0).toLocaleString("bn-BD")}/মাস ·{" "}
+                  {Number(plan.propertyLimit || 0).toLocaleString("bn-BD")} প্রপার্টি ·{" "}
                   {Number(plan.flatLimit || 0).toLocaleString("bn-BD")} ফ্ল্যাট ·{" "}
                   {Number(plan.smsLimit || 0).toLocaleString("bn-BD")} SMS ·{" "}
                   {Number(plan.reportMonths || 0).toLocaleString("bn-BD")} মাস রিপোর্ট

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -20,7 +20,8 @@ export default function NewTenantPage() {
 
   const [showAddUnit, setShowAddUnit] = useState(false);
   const [showUtility, setShowUtility] = useState(false);
-  const [newUnit, setNewUnit] = useState({ unitNumber: "", floor: "", type: "flat", monthlyRent: "" });
+  const [selectedPropertyName, setSelectedPropertyName] = useState("");
+  const [newUnit, setNewUnit] = useState({ propertyName: "", propertyAddress: "", unitNumber: "", floor: "", type: "flat", monthlyRent: "" });
 
   const { data: properties = [], refetch: refetchProperties } = useQuery({
     queryKey: ["landlord", "properties", "all"],
@@ -36,9 +37,10 @@ export default function NewTenantPage() {
       const created = res.data?.data;
       if (created) {
         setForm(f => ({ ...f, propertyId: created._id, monthlyRent: created.monthlyRent }));
+        setSelectedPropertyName(created.propertyName || "");
       }
       setShowAddUnit(false);
-      setNewUnit({ unitNumber: "", floor: "", type: "flat", monthlyRent: "" });
+      setNewUnit({ propertyName: "", propertyAddress: "", unitNumber: "", floor: "", type: "flat", monthlyRent: "" });
     },
     onError: (err) => toast.error(err.response?.data?.message || "ইউনিট যুক্ত করা যায়নি"),
   });
@@ -63,11 +65,26 @@ export default function NewTenantPage() {
   };
 
   const handleAddUnit = () => {
-    if (!newUnit.unitNumber || !newUnit.monthlyRent) return toast.error("ইউনিট নম্বর ও ভাড়া দিন");
+    if (!newUnit.propertyName || !newUnit.unitNumber || !newUnit.monthlyRent) return toast.error("প্রপার্টির নাম, ইউনিট নম্বর ও ভাড়া দিন");
     addUnitMutation.mutate(newUnit);
   };
 
-  const availableProps = properties.filter(p => !p.isOccupied);
+  const propertyNames = useMemo(() => {
+    const groups = new Map();
+    properties.forEach((property) => {
+      const key = property.propertyName || "";
+      if (!key || groups.has(key)) return;
+      groups.set(key, {
+        name: key,
+        address: property.propertyAddress || "",
+      });
+    });
+    return Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [properties]);
+
+  const availableProps = properties.filter(
+    p => p.isUnit !== false && !p.isOccupied && (!selectedPropertyName || p.propertyName === selectedPropertyName),
+  );
 
   const field = (label, key, type = "text", ph = "", required = false) => (
     <div>
@@ -105,6 +122,28 @@ export default function NewTenantPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
+              প্রপার্টি / বিল্ডিং
+            </label>
+            <select
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              value={selectedPropertyName}
+              onChange={(e) => {
+                setSelectedPropertyName(e.target.value);
+                set("propertyId", "");
+                set("monthlyRent", "");
+              }}
+            >
+              <option value="">সব প্রপার্টি</option>
+              {propertyNames.map((property) => (
+                <option key={property.name} value={property.name}>
+                  {property.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               ইউনিট/ফ্ল্যাট <span className="text-red-500">*</span>
             </label>
             <select
@@ -139,6 +178,37 @@ export default function NewTenantPage() {
               <div className="mt-3 border border-green-200 bg-green-50 rounded-xl p-3 space-y-3">
                 <p className="text-sm font-medium text-green-800">নতুন ইউনিট</p>
                 <div className="grid grid-cols-2 gap-2">
+                  <select
+                    className="col-span-2 border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                    value={newUnit.propertyName}
+                    onChange={(e) => {
+                      const property = propertyNames.find((item) => item.name === e.target.value);
+                      setNewUnit(u => ({
+                        ...u,
+                        propertyName: e.target.value,
+                        propertyAddress: property?.address || u.propertyAddress,
+                      }));
+                    }}
+                  >
+                    <option value="">প্রপার্টি বেছে নিন বা নিচে নতুন নাম লিখুন</option>
+                    {propertyNames.map((property) => (
+                      <option key={property.name} value={property.name}>
+                        {property.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    placeholder="প্রপার্টির নাম *"
+                    className="border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    value={newUnit.propertyName}
+                    onChange={e => setNewUnit(u => ({ ...u, propertyName: e.target.value }))}
+                  />
+                  <input
+                    placeholder="প্রপার্টির ঠিকানা"
+                    className="border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    value={newUnit.propertyAddress}
+                    onChange={e => setNewUnit(u => ({ ...u, propertyAddress: e.target.value }))}
+                  />
                   <input
                     placeholder="ইউনিট নম্বর *"
                     className="border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"

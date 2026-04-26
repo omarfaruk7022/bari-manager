@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { validate, subscriptionApproveSchema } from "../middlewares/validate.js";
+import { validate, subscriptionApproveSchema, propertyCreateSchema, propertyGroupCreateSchema } from "../middlewares/validate.js";
 import {
   list,
   approve,
@@ -36,6 +36,7 @@ import {
   getPlans,
   updatePlans,
 } from "../controllers/superadmin.controller.js";
+import * as P from "../controllers/property.controller.js";
 
 const router = Router();
 
@@ -62,6 +63,14 @@ router.get("/tenants/:id", getTenant);
 router.put("/tenants/:id", updateTenant);
 router.put("/tenants/:id/toggle", toggleTenant);
 router.delete("/tenants/:id", deleteTenant);
+
+// All properties / units
+router.get("/properties", P.list);
+router.post("/properties/groups", validate(propertyGroupCreateSchema), P.createGroup);
+router.put("/properties/groups/:id", validate(propertyGroupCreateSchema), P.updateGroup);
+router.post("/properties", validate(propertyCreateSchema), P.create);
+router.put("/properties/:id", validate(propertyCreateSchema), P.update);
+router.delete("/properties/:id", P.remove);
 
 // System config (env management)
 router.get("/config", getConfigs);

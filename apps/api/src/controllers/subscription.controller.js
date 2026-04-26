@@ -191,6 +191,7 @@ export const approve = async (req, res, next) => {
       approvalCategory,
       approvalMonths,
       smsLimit: selectedPlan.smsLimit,
+      propertyLimit: selectedPlan.propertyLimit,
       flatLimit: selectedPlan.flatLimit,
       reportMonths: selectedPlan.reportMonths,
     });

@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import User from "../models/User.model.js";
+import Property from "../models/Property.model.js";
 import Notification from "../models/Notification.model.js";
 import LandlordProfile from "../models/LandlordProfile.model.js";
 import SystemConfig from "../models/SystemConfig.model.js";
@@ -49,18 +50,86 @@ export function normalizeBDPhone(phone) {
   return cleaned;
 }
 
+async function resolvePropertyScopedUser({
+  identifier,
+  propertyName,
+  unitNumber,
+  select = "+password",
+}) {
+  const cleaned = (identifier || "").replace(/\D/g, "");
+  const possiblePhones = [
+    cleaned,
+    cleaned.replace(/^880/, "0"),
+    "880" + cleaned.replace(/^0/, ""),
+  ];
+
+  const users = await User.find({
+    $or: [
+      { email: String(identifier || "").toLowerCase() },
+      { phone: { $in: possiblePhones } },
+    ],
+  }).select(select);
+
+  if (!users.length) return { user: null };
+
+  const tenantUsers = users.filter((user) => user.role === "tenant");
+  const primaryUsers = users.filter((user) => user.role !== "tenant");
+
+  if (primaryUsers.length) {
+    return { user: primaryUsers[0] };
+  }
+
+  if (tenantUsers.length === 1 && !propertyName && !unitNumber) {
+    return { user: tenantUsers[0] };
+  }
+
+  if (!propertyName && !unitNumber) {
+    return {
+      user: null,
+      error: "একই মোবাইল/ইমেইলে একাধিক টেন্যান্ট আছে। প্রপার্টির নাম ও ইউনিট নম্বর দিন।",
+      statusCode: 409,
+    };
+  }
+
+  const propertyFilter = {};
+  if (propertyName) propertyFilter.propertyName = new RegExp(`^${String(propertyName).trim()}$`, "i");
+  if (unitNumber) propertyFilter.unitNumber = new RegExp(`^${String(unitNumber).trim()}$`, "i");
+
+  const matchingProperties = await Property.find(propertyFilter).select("_id");
+  const propertyIds = new Set(matchingProperties.map((property) => String(property._id)));
+  const matchedTenant = tenantUsers.find(
+    (user) => user.propertyId && propertyIds.has(String(user.propertyId)),
+  );
+
+  if (!matchedTenant) {
+    return {
+      user: null,
+      error: "এই প্রপার্টি/ইউনিটের জন্য টেন্যান্ট অ্যাকাউন্ট পাওয়া যায়নি",
+      statusCode: 404,
+    };
+  }
+
+  return { user: matchedTenant };
+}
+
 // ─── Login (email or phone) ──────────────────────────────────────────────────
 export const login = async (req, res, next) => {
   try {
-    const { email, phone, password } = req.body;
-    console.log("REQ BODY:", req.body);
+    const { email, phone, password, propertyName, unitNumber } = req.body;
     const identifier = email || normalizeBDPhone(phone);
-    console.log("IDENTIFIER:", identifier);
     if (!identifier || !password)
       return res.status(400).json({ success: false, message: "লগইন তথ্য দিন" });
 
-    const user = await User.findByLogin(identifier);
-    console.log("USER:", user);
+    const { user, error, statusCode } = await resolvePropertyScopedUser({
+      identifier,
+      propertyName,
+      unitNumber,
+      select: "+password",
+    });
+
+    if (error) {
+      return res.status(statusCode || 400).json({ success: false, message: error });
+    }
 
     if (!user || !(await user.comparePassword(password)))
       return res
@@ -176,7 +245,7 @@ export const changePassword = async (req, res, next) => {
 // ─── Forgot Password (SMS OTP, fallback to email) ───────────────────────────
 export const forgotPassword = async (req, res, next) => {
   try {
-    const { phone, email } = req.body;
+    const { phone, email, propertyName, unitNumber } = req.body;
     const identifier = phone || email;
     const requestedVia = phone ? "sms" : "email";
     if (!identifier)
@@ -184,7 +253,14 @@ export const forgotPassword = async (req, res, next) => {
         .status(400)
         .json({ success: false, message: "মোবাইল নম্বর বা ইমেইল দিন" });
 
-    const user = await User.findByLogin(identifier);
+    const { user, error, statusCode } = await resolvePropertyScopedUser({
+      identifier,
+      propertyName,
+      unitNumber,
+    });
+    if (error) {
+      return res.status(statusCode || 400).json({ success: false, message: error });
+    }
     if (!user)
       return res.status(404).json({
         success: false,
@@ -277,16 +353,22 @@ export const forgotPassword = async (req, res, next) => {
 // ─── Verify OTP & Reset Password ─────────────────────────────────────────────
 export const resetPassword = async (req, res, next) => {
   try {
-    const { phone, email, otp, newPassword } = req.body;
+    const { phone, email, propertyName, unitNumber, otp, newPassword } = req.body;
     if (!otp || !newPassword)
       return res
         .status(400)
         .json({ success: false, message: "OTP এবং নতুন পাসওয়ার্ড দিন" });
 
     const identifier = normalizeBDPhone(phone) || email;
-    const user = await User.findByLogin(identifier).select(
-      "+resetOtp +resetOtpExpiry",
-    );
+    const { user, error, statusCode } = await resolvePropertyScopedUser({
+      identifier,
+      propertyName,
+      unitNumber,
+      select: "+resetOtp +resetOtpExpiry",
+    });
+    if (error) {
+      return res.status(statusCode || 400).json({ success: false, message: error });
+    }
     if (!user)
       return res
         .status(404)
